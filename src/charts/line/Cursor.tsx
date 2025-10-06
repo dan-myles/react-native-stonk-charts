@@ -1,6 +1,7 @@
 import React from 'react';
 
 import Animated, { runOnJS } from 'react-native-reanimated';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {
   Gesture,
   GestureDetector,
@@ -28,6 +29,10 @@ export type LineChartCursorProps = {
 };
 
 export const CursorContext = React.createContext({ type: '' });
+
+const hapticFeedback = () => {
+  ReactNativeHapticFeedback.trigger("impactLight");
+};
 
 LineChartCursor.displayName = 'LineChartCursor';
 
@@ -104,6 +109,10 @@ export function LineChartCursor({
         minIndex,
         Math.round(xPosition / width / (1 / (data ? data.length - 1 : 1)))
       );
+
+      if(xPosition % 10 < 5) {
+        runOnJS(hapticFeedback)();
+      }
 
       if (snapToPoint) {
         // We have to run this on the JS thread unfortunately as the scaleLinear functions won't work on UI thread

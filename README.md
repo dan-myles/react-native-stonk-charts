@@ -102,11 +102,11 @@ bun add react-native-stonk-charts
 This library depends on the following packages, which you'll need to install if you don't already have them:
 
 ```bash
-npm install react-native-reanimated react-native-gesture-handler react-native-svg react-native-redash
+npm install react-native-reanimated react-native-gesture-handler react-native-svg react-native-redash react-native-haptic-feedback
 ```
 
 ```bash
-bun add react-native-reanimated react-native-gesture-handler react-native-svg react-native-redash
+bun add react-native-reanimated react-native-gesture-handler react-native-svg react-native-redash react-native-haptic-feedback
 ```
 
 **Important:** Make sure you have the Reanimated Babel plugin configured in your `babel.config.js`:

@@ -1,52 +1,56 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
-import { Svg } from 'react-native-svg';
+import * as React from "react";
+import flattenChildren from "react-keyed-flatten-children";
+import { View, StyleSheet } from "react-native";
 import Animated, {
   useAnimatedProps,
   useSharedValue,
   withTiming,
   WithTimingConfig,
-} from 'react-native-reanimated';
-import flattenChildren from 'react-keyed-flatten-children';
+} from "react-native-reanimated";
+import { Defs, LinearGradient, Stop, Svg } from "react-native-svg";
 
-import { LineChartDimensionsContext } from './Chart';
-import { LineChartPathContext } from './LineChartPathContext';
-import { LineChartPath, LineChartPathProps } from './Path';
-import { useLineChart } from './useLineChart';
+import { LineChartDimensionsContext } from "./Chart";
+import { LineChartPathContext } from "./LineChartPathContext";
+import { LineChartPath, LineChartPathProps } from "./Path";
+import { useLineChart } from "./useLineChart";
 
 const BACKGROUND_COMPONENTS = [
-  'LineChartHighlight',
-  'LineChartHorizontalLine',
-  'LineChartGradient',
-  'LineChartDot',
-  'LineChartTooltip',
+  "LineChartHighlight",
+  "LineChartHorizontalLine",
+  "LineChartGradient",
+  "LineChartDot",
+  "LineChartTooltip",
 ];
-const FOREGROUND_COMPONENTS = ['LineChartHighlight', 'LineChartDot'];
+const FOREGROUND_COMPONENTS = ["LineChartHighlight", "LineChartDot"];
 
 const AnimatedSVG = Animated.createAnimatedComponent(Svg);
 
 type LineChartPathWrapperProps = {
   animationDuration?: number;
-  animationProps?: Omit<Partial<WithTimingConfig>, 'duration'>;
+  animationProps?: Omit<Partial<WithTimingConfig>, "duration">;
   children?: React.ReactNode;
   color?: string;
+  glow?: string;
+  gradientColors?: string[];
   inactiveColor?: string;
   width?: number;
   widthOffset?: number;
   pathProps?: Partial<LineChartPathProps>;
   showInactivePath?: boolean;
-  animateOnMount?: 'foreground';
+  animateOnMount?: "foreground";
   mountAnimationDuration?: number;
   mountAnimationProps?: Partial<WithTimingConfig>;
 };
 
-LineChartPathWrapper.displayName = 'LineChartPathWrapper';
+LineChartPathWrapper.displayName = "LineChartPathWrapper";
 
 export function LineChartPathWrapper({
   animationDuration = 300,
   animationProps = {},
   children,
-  color = 'black',
+  color = "black",
+  glow,
+  gradientColors = ["#7B61FF", "#02D1BFBD"],
   inactiveColor,
   width: strokeWidth = 3,
   widthOffset = 20,
@@ -57,7 +61,7 @@ export function LineChartPathWrapper({
   mountAnimationProps = animationProps,
 }: LineChartPathWrapperProps) {
   const { height, pathWidth, width } = React.useContext(
-    LineChartDimensionsContext
+    LineChartDimensionsContext,
   );
   const { currentX, isActive } = useLineChart();
   const isMounted = useSharedValue(false);
@@ -70,7 +74,7 @@ export function LineChartPathWrapper({
   ////////////////////////////////////////////////
 
   const svgProps = useAnimatedProps(() => {
-    const shouldAnimateOnMount = animateOnMount === 'foreground';
+    const shouldAnimateOnMount = animateOnMount === "foreground";
     const inactiveWidth =
       !isMounted.value && shouldAnimateOnMount ? 0 : pathWidth;
 
@@ -97,7 +101,7 @@ export function LineChartPathWrapper({
         Object.assign({ duration }, props),
         () => {
           hasMountedAnimation.value = true;
-        }
+        },
       ),
     };
   }, [
@@ -124,11 +128,11 @@ export function LineChartPathWrapper({
     const iterableChildren = flattenChildren(children);
     backgroundChildren = iterableChildren.filter((child) =>
       // @ts-ignore
-      BACKGROUND_COMPONENTS.includes(child?.type?.displayName)
+      BACKGROUND_COMPONENTS.includes(child?.type?.displayName),
     );
     foregroundChildren = iterableChildren.filter((child) =>
       // @ts-ignore
-      FOREGROUND_COMPONENTS.includes(child?.type?.displayName)
+      FOREGROUND_COMPONENTS.includes(child?.type?.displayName),
     );
   }
 
@@ -152,9 +156,7 @@ export function LineChartPathWrapper({
               {...pathProps}
             />
           </Svg>
-          <Svg style={StyleSheet.absoluteFill}>
-            {backgroundChildren}
-          </Svg>
+          <Svg style={StyleSheet.absoluteFill}>{backgroundChildren}</Svg>
         </View>
       </LineChartPathContext.Provider>
       <LineChartPathContext.Provider
@@ -164,11 +166,27 @@ export function LineChartPathWrapper({
           isTransitionEnabled: pathProps.isTransitionEnabled ?? true,
         }}
       >
-        <View style={StyleSheet.absoluteFill}>
+        <View style={[StyleSheet.absoluteFill, styles.glowWrapper, glow && { shadowColor: glow }]}>
           <AnimatedSVG animatedProps={svgProps} height={height}>
-            <LineChartPath color={color} width={strokeWidth} {...pathProps} />
+            <Defs>
+              <LinearGradient id="lineGradient" x1="0" y1="0" x2="100%" y2="0">
+                <Stop offset="0%" stopColor={gradientColors[0]} />
+                <Stop offset="100%" stopColor={gradientColors[1]} />
+              </LinearGradient>
+            </Defs>
+
+            <LineChartPath
+              stroke="url(#lineGradient)" // use the gradient as the stroke
+              width={strokeWidth}
+              {...pathProps}
+            />
           </AnimatedSVG>
-          <AnimatedSVG animatedProps={svgProps} height={height} style={StyleSheet.absoluteFill}>
+
+          <AnimatedSVG
+            animatedProps={svgProps}
+            height={height}
+            style={StyleSheet.absoluteFill}
+          >
             {foregroundChildren}
           </AnimatedSVG>
         </View>
@@ -176,3 +194,11 @@ export function LineChartPathWrapper({
     </>
   );
 }
+const styles = StyleSheet.create({
+  glowWrapper: {
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 5,
+    elevation: 10,
+  },
+});

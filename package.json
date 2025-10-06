@@ -1,6 +1,6 @@
 {
   "name": "react-native-stonk-charts",
-  "version": "4.0.1",
+  "version": "4.0.3",
   "description": "A beautiful, performant chart library for React Native. Fork of react-native-wagmi-charts with Reanimated v4 support.",
   "license": "MIT",
   "author": "Dan Myles <me@danmyles.com>",
@@ -19,7 +19,7 @@
   "source": "src/index",
   "scripts": {
     "test": "jest",
-    "typescript": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "build": "bob build",
     "publishOnly": "bob build",
@@ -61,6 +61,7 @@
     "d3-shape": "^3.0.1",
     "fbjs": "^3.0.5",
     "react-keyed-flatten-children": "^1.3.0",
+    "react-native-haptic-feedback": "^2.3.3",
     "react-native-redash": "^18.1.3"
   },
   "devDependencies": {
@@ -97,6 +98,7 @@
     "react-native": "*",
     "react-native-gesture-handler": "*",
     "react-native-reanimated": "*",
+    "react-native-haptic-feedback": "*",
     "react-native-redash": "*",
     "react-native-svg": "*"
   },
