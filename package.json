@@ -1,7 +1,17 @@
 {
-  "name": "react-native-wagmi-charts",
-  "version": "2.7.3",
-  "description": "A sweet candlestick chart for React Native",
+  "name": "react-native-stonk-charts",
+  "version": "4.0.1",
+  "description": "A beautiful, performant chart library for React Native. Fork of react-native-wagmi-charts with Reanimated v4 support.",
+  "license": "MIT",
+  "author": "Dan Myles <me@danmyles.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dan-myles/react-native-stonk-charts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dan-myles/react-native-stonk-charts/issues"
+  },
+  "homepage": "https://github.com/dan-myles/react-native-stonk-charts#readme",
   "main": "lib/commonjs/index.js",
   "module": "lib/module/index.js",
   "types": "lib/typescript/src/index.d.ts",
@@ -13,7 +23,7 @@
     "lint": "eslint \"**/*.{js,ts,tsx}\"",
     "build": "bob build",
     "publishOnly": "bob build",
-    "example": "pnpm --filter react-native-wagmi-charts-example run start",
+    "example": "pnpm --filter react-native-stonk-charts-example run start",
     "pods": "cd example && pod-install --quiet",
     "bootstrap": "pnpm example && pnpm && pnpm pods"
   },
@@ -23,18 +33,20 @@
     "!**/__tests__",
     "!**/__fixtures__",
     "!**/__mocks__",
-    "android",
-    "ios",
-    "cpp",
-    "react-native-wagmi-charts.podspec",
-    "!lib/typescript/example",
-    "!android/build",
-    "!ios/build"
+    "!lib/typescript/example"
   ],
   "keywords": [
     "react-native",
     "ios",
-    "android"
+    "android",
+    "charts",
+    "candlestick",
+    "line-chart",
+    "reanimated",
+    "animations",
+    "finance",
+    "trading",
+    "stocks"
   ],
   "workspaces": [
     "example"
@@ -74,8 +86,8 @@
     "react": "19.0.0",
     "react-native": "0.79.5",
     "react-native-builder-bob": "^0.23.2",
-    "react-native-gesture-handler": "~2.24.0",
-    "react-native-reanimated": "3.17.4",
+    "react-native-gesture-handler": "2.28.0",
+    "react-native-reanimated": "4.1.2",
     "react-native-svg": "15.11.2",
     "typescript": "^5.8.3",
     "typescript-eslint": "^8.35.1"
@@ -104,5 +116,10 @@
       "typescript"
     ]
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "pnpm": {
+    "overrides": {
+      "@types/react": "^19.0.0"
+    }
+  }
 }

@@ -1,6 +1,8 @@
-# react-native-wagmi-charts 💸
+# react-native-stonk-charts 💸
 
-A sweet & simple chart library for React Native that will make us feel like **W**e're **A**ll **G**onna **M**ake **I**t
+> **Note:** This library is a fork of [react-native-wagmi-charts](https://github.com/coinjar/react-native-wagmi-charts), updated to support React Native Reanimated v4 and the latest React Native ecosystem.
+
+A sweet & simple chart library for React Native with beautiful animations and interactions
 
 <div style="display: flex; align-items: center; justify-content: center; width: 100%;">
   <img src="https://user-images.githubusercontent.com/7336481/133024970-07321941-4f26-44d2-867f-dac19d110941.gif" width="300px" />
@@ -17,7 +19,7 @@ A sweet & simple chart library for React Native that will make us feel like **W*
 
 🛠 Highly customizable APIs
 
-✨ Uses React Native Reanimated 2 under-the-hood
+✨ Uses React Native Reanimated under-the-hood
 
 🧈 Slick data transition animations
 
@@ -65,7 +67,6 @@ A sweet & simple chart library for React Native that will make us feel like **W*
   - [LineChart.Tooltip](#linecharttooltip)
   - [LineChart.PriceText](#linechartpricetext)
   - [LineChart.DatetimeText](#linechartdatetimetext)
-  - [LineChart.HoverTrap](#linecharthovertrap)
   - [CandlestickChart.Provider](#candlestickchartprovider)
   - [CandlestickChart](#candlestickchart)
   - [CandlestickChart.Candles](#candlestickchartcandles)
@@ -81,21 +82,45 @@ A sweet & simple chart library for React Native that will make us feel like **W*
   - [CandlestickChart.useCandleData](#candlestickchartusecandledata)
   - [CandlestickChart.useDatetime](#candlestickchartusedatetime)
   - [CandlestickChart.usePrice](#candlestickchartuseprice)
-- [Web Support](#web-support)
+- [What's Different from wagmi-charts?](#whats-different-from-wagmi-charts)
+- [Migration from wagmi-charts](#migration-from-wagmi-charts)
 - [Credits](#credits)
 
 ## Install
 
-To get started with using WAGMI charts in your React Native project, install the `react-native-wagmi-charts` package.
-
+```bash
+npm install react-native-stonk-charts
 ```
-npm install react-native-wagmi-charts
+or with bun:
+
+```bash
+bun add react-native-stonk-charts
 ```
 
-WAGMI charts also depends on a few libraries, you will also need to install these packages if you don't already have them:
+### Peer Dependencies
 
+This library depends on the following packages, which you'll need to install if you don't already have them:
+
+```bash
+npm install react-native-reanimated react-native-gesture-handler react-native-svg react-native-redash
 ```
-npm install react-native-reanimated react-native-gesture-handler react-native-haptic-feedback
+
+```bash
+bun add react-native-reanimated react-native-gesture-handler react-native-svg react-native-redash
+```
+
+**Important:** Make sure you have the Reanimated Babel plugin configured in your `babel.config.js`:
+
+```javascript
+module.exports = {
+  presets: [
+    // ... your other presets
+  ],
+  plugins: [
+    // ... your other plugins
+    'react-native-worklets/plugin',
+  ],
+};
 ```
 
 ## Basic Usage
@@ -111,7 +136,7 @@ The `LineChart.Provider` component sets up the context of your chart, `LineChart
 > Note: This chart does not include an interactive cursor like in the animated example above. If you want one, [check out the "Interactive Cursors" guide](#interactive-cursors)
 
 ```jsx
-import { LineChart } from 'react-native-wagmi-charts';
+import { LineChart } from 'react-native-stonk-charts';
 
 const data = [
   {
@@ -152,7 +177,7 @@ The `CandlestickChart.Provider` component sets up the context of your chart, `Ca
 > Note: This chart does not include an interactive cursor like in the animated example above. If you want one, [check out the "Interactive Cursors" guide](#interactive-cursors)
 
 ```jsx
-import { CandlestickChart } from 'react-native-wagmi-charts';
+import { CandlestickChart } from 'react-native-stonk-charts';
 
 const data = [
   {
@@ -403,25 +428,6 @@ To customise the color of the line chart cursor, supply a `color` prop to `LineC
 ```
 
 <img width="200px" alt="Screen Shot 2021-09-13 at 4 53 46 pm" src="https://user-images.githubusercontent.com/7336481/133037333-6b1345e5-a98b-459c-b3b1-6e5b08143f33.png">
-
-#### Hovering the chart
-
-By default, the cursor is triggered whenever you press the chart.
-
-If your app runs on Web, you may want to trigger the cursor when a user hovers, too.
-
-To achieve this, simply add `<LineChart.HoverTrap />` as the child of your cursor.
-
-```jsx
-<LineChart.Provider data={data}>
-  <LineChart>
-    <LineChart.Path color="hotpink" />
-    <LineChart.CursorCrosshair color="hotpink">
-      <LineChart.HoverTrap />
-    </LineChart.CursorCrosshair>
-  </LineChart>
-</LineChart.Provider>
-```
 
 ### Gradients
 
@@ -956,16 +962,6 @@ To customize the formatting of the date/time text, you can supply a `format` fun
 | `style`   | `{}`                               |               | Style of the price text                                                                                                                                                   |
 | `variant` | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the timestamp value.                                                                                                                            |
 
-### LineChart.HoverTrap
-
-This component doesn't take any props.
-
-Place it as the child of your cursor component to trap hover events on Web. If you're using mutliple cursors, place this as the child of your lowest-rendered cursor.
-
-```tsx
-<LineChart.HoverTrap />
-```
-
 ### LineChart.Axis
 
 | Prop                | Type                                            | Default    | Description                                                      |
@@ -1207,33 +1203,32 @@ const { value, formatted } = CandlestickChart.usePrice({
 | `value`     | `string` |         | Price value           |
 | `formatted` | `string` |         | Formatted price value |
 
-## Web Support
+## What's Different from wagmi-charts?
 
-Web support is currently experimental.
+This fork includes several improvements over the original `react-native-wagmi-charts`:
 
-Currently, transitions for a line chart's path flicker a little. You can disable them on Web with the `isTransitionEnabled` prop.
+- ✅ **Updated to React Native Reanimated v4** - Full support for the latest Reanimated API
+- ✅ **Updated to React Native Gesture Handler v2** - Uses the modern Gesture API
+- ✅ **Removed web support** - Focused exclusively on native iOS and Android for better performance
+- ✅ **Modern API** - Uses `addWhitelistedUIProps` instead of deprecated `addWhitelistedNativeProps`
+- ✅ **Simplified architecture** - Removed web-specific workarounds and code paths
+- ✅ **Better TypeScript support** - Fixed type definitions and improved type safety
 
-### Disable Transitions
+## Migration from wagmi-charts
 
-```tsx
-import { Platform } from 'react-native';
+If you're migrating from `react-native-wagmi-charts`, the API is 100% compatible! Simply:
 
-const isWeb = Platform.OS === 'web'
+1. Update your import statements from `react-native-wagmi-charts` to `react-native-stonk-charts`
+2. Make sure you have React Native Reanimated v4 installed
+3. Update your babel config to use `react-native-worklets/plugin` instead of `react-native-reanimated/plugin`
 
-<LineChart.Path
-  pathProps={{
-    isTransitionEnabled: !isWeb,
-  }}
-/>;
-```
-
-### Reanimated Version
-
-In order to support SVG animations on Web, you'll need at least Reanimated version `2.3.0-beta.2`. Or, you can use the patch from [Issue #8](https://github.com/coinjar/react-native-wagmi-charts/issues/8#issuecomment-938097099).
+That's it! Everything else works exactly the same.
 
 ## Credits
 
-This library wouldn't be possible if it weren't for:
+This library is a fork of [react-native-wagmi-charts](https://github.com/coinjar/react-native-wagmi-charts) by CoinJar.
+
+The original library wouldn't be possible if it weren't for:
 
 - [Rainbow's Animated Charts](https://github.com/rainbow-me/react-native-animated-charts)
 - @wcandillon and his [Can It Be Done In React Native](www.youtube.com/wcandillon) series 💪😍

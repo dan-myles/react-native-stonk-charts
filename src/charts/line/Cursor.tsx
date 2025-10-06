@@ -18,13 +18,13 @@ import { useEffect } from 'react';
 export type LineChartCursorProps = {
   children: React.ReactNode;
   type: 'line' | 'crosshair';
-  // Does not work on web due to how the Cursor operates on web
   snapToPoint?: boolean;
   at?: number;
   shouldCancelWhenOutside?: boolean;
   minDurationMs?: number;
   onActivated?: () => void;
   onEnded?: () => void;
+  orientation?: 'horizontal' | 'vertical';
 };
 
 export const CursorContext = React.createContext({ type: '' });

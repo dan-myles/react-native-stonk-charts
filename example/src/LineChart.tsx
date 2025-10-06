@@ -11,7 +11,7 @@ import {
   LineChartTooltipPosition,
   TLineChartDataProp,
   TLineChartPoint,
-} from 'react-native-wagmi-charts';
+} from 'react-native-stonk-charts';
 import * as haptics from 'expo-haptics';
 
 import mockData from './data/line-data.json';

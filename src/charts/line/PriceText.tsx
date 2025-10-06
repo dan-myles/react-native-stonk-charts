@@ -37,7 +37,6 @@ export function LineChartPriceText({
   style,
   index,
   useOptimizedRendering = false,
-  getTextColor,
 }: LineChartPriceTextProps) {
   
   const price = useLineChartPrice({ format, precision, index });
@@ -47,14 +46,9 @@ export function LineChartPriceText({
   if (format && useOptimizedRendering) {
     const { currentIndex, data } = useLineChart();
     const [displayText, setDisplayText] = useState('');
-    const [textColor, setTextColor] = useState('#000000');
     
     const updateText = (newText: string) => {
       setDisplayText(newText);
-      // Update color if getTextColor function is provided
-      if (getTextColor) {
-        setTextColor(getTextColor(newText));
-      }
     };
     
     const textValue = useDerivedValue(() => {
@@ -87,13 +81,7 @@ export function LineChartPriceText({
       [textValue]
     );
     
-    // Merge the text color with the provided style
-    const dynamicStyle = [
-      style,
-      { color: textColor }
-    ];
-    
-    return <Text style={dynamicStyle as any}>{displayText}</Text>;
+    return <Text style={style as RNTextProps['style']}>{displayText}</Text>;
   }
   
   // For non-custom format, use the original approach

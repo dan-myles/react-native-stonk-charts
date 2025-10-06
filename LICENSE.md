@@ -1,6 +1,6 @@
 MIT License
 
-Copyright © 2021 CoinJar UK Limited
+Copyright © 2025 Dan Myles
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

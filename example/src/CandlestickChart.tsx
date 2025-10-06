@@ -1,6 +1,6 @@
 import React from 'react';
 import { Platform, View, TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { CandlestickChart, TCandle } from 'react-native-wagmi-charts';
+import { CandlestickChart, TCandle } from 'react-native-stonk-charts';
 import * as haptics from 'expo-haptics';
 
 import mockData from './data/candlestick-data.json';
