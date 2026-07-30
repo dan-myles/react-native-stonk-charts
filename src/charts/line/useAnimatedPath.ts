@@ -1,3 +1,4 @@
+import * as React from 'react';
 import {
   useAnimatedProps,
   useAnimatedReaction,
@@ -32,10 +33,17 @@ export default function useAnimatedPath({
     [path]
   );
 
+  // Parsing both path strings is expensive (O(points)). Build the
+  // interpolator once per path change on the JS thread; the returned
+  // closure is a worklet, so the frame loop below only evaluates it.
+  const pathInterpolator = React.useMemo(
+    () => (previousPath && enabled ? interpolatePath(previousPath, path, null) : null),
+    [enabled, path, previousPath]
+  );
+
   const animatedProps = useAnimatedProps(() => {
     let d = path || '';
-    if (previousPath && enabled) {
-      const pathInterpolator = interpolatePath(previousPath, path, null);
+    if (pathInterpolator) {
       d = pathInterpolator(transition.value);
     }
     return {

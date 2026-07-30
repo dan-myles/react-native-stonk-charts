@@ -4,7 +4,9 @@ import * as d3Shape from 'd3-shape';
 
 import { Dimensions, StyleSheet, View, ViewProps } from 'react-native';
 import { LineChartIdProvider, useLineChartData } from './Data';
-import { Path, parse } from 'react-native-redash';
+import { getYForX, Path, parse } from 'react-native-redash';
+import type { SharedValue } from 'react-native-reanimated';
+import { useDerivedValue } from 'react-native-reanimated';
 import { getArea, getPath } from './utils';
 
 import { LineChartContext } from './Context';
@@ -19,6 +21,7 @@ export const LineChartDimensionsContext = React.createContext({
   shape: d3Shape.curveBumpX,
   gutter: 0,
   pathWidth: 0,
+  currentY: { value: -1 } as SharedValue<number>,
 });
 
 type LineChartProps = ViewProps & {
@@ -48,7 +51,8 @@ export function LineChart({
   absolute,
   ...props
 }: LineChartProps) {
-  const { yDomain, xLength, xDomain } = React.useContext(LineChartContext);
+  const { yDomain, xLength, xDomain, currentX } =
+    React.useContext(LineChartContext);
   const { data } = useLineChartData({
     id,
   });
@@ -101,6 +105,18 @@ export function LineChart({
     [data, width]
   );
 
+  // One derived cursor Y per chart. Every useLineChart() consumer used to
+  // build its own copy (re-parsing the path and solving the curve per
+  // frame), multiplying UI-thread work by the number of consumers.
+  const hasPath = path !== '';
+  const currentY = useDerivedValue(() => {
+    if (!hasPath) {
+      return -1;
+    }
+    const boundedX = Math.min(width, currentX.value);
+    return getYForX(parsedPath, boundedX) || 0;
+  }, [hasPath, parsedPath, width, currentX]);
+
   const contextValue = React.useMemo(
     () => ({
       gutter: yGutter,
@@ -112,6 +128,7 @@ export function LineChart({
       height,
       pathWidth,
       shape,
+      currentY,
     }),
     [
       yGutter,
@@ -123,6 +140,7 @@ export function LineChart({
       height,
       pathWidth,
       shape,
+      currentY,
     ]
   );
 

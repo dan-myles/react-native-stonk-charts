@@ -1,6 +1,6 @@
 import React from 'react';
 
-import Animated, { runOnJS } from 'react-native-reanimated';
+import Animated, { runOnJS, useSharedValue } from 'react-native-reanimated';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {
   Gesture,
@@ -50,6 +50,7 @@ export function LineChartCursor({
     LineChartDimensionsContext
   );
   const { currentX, currentIndex, isActive, data, xDomain } = useLineChart();
+  const lastHapticAt = useSharedValue(0);
   const xValues = React.useMemo(
     () => (data ?? []).map(({ timestamp }, i) => (xDomain ? timestamp : i)),
     [data, xDomain]
@@ -110,8 +111,15 @@ export function LineChartCursor({
         Math.round(xPosition / width / (1 / (data ? data.length - 1 : 1)))
       );
 
-      if(xPosition % 10 < 5) {
-        runOnJS(hapticFeedback)();
+      // Haptic only when the cursor crosses onto a new data point, at most
+      // every 50ms. Firing per touch-move event floods the JS thread and the
+      // haptic engine (~60+ calls/sec at 120Hz).
+      if (boundedIndex !== currentIndex.value) {
+        const now = Date.now();
+        if (now - lastHapticAt.value >= 50) {
+          lastHapticAt.value = now;
+          runOnJS(hapticFeedback)();
+        }
       }
 
       if (snapToPoint) {
