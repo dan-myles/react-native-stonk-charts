@@ -1,6 +1,6 @@
 {
   "name": "react-native-stonk-charts",
-  "version": "4.0.4",
+  "version": "4.1.4",
   "description": "A beautiful, performant chart library for React Native. Fork of react-native-wagmi-charts with Reanimated v4 support.",
   "license": "MIT",
   "author": "Dan Myles <me@danmyles.com>",
