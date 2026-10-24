@@ -1,12 +1,12 @@
 import React from 'react';
 
-import Animated, { runOnJS, useSharedValue } from 'react-native-reanimated';
+import Animated, { useSharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {
-  Gesture,
   GestureDetector,
-  GestureStateChangeEvent,
-  LongPressGestureHandlerEventPayload,
+  LongPressGestureEvent,
+  useLongPressGesture,
 } from 'react-native-gesture-handler';
 
 import { LineChartDimensionsContext } from './Chart';
@@ -94,7 +94,7 @@ export function LineChartCursor({
   useEffect(() => {
     if (at !== undefined) {
       const xPosition = scaleX(at);
-      runOnJS(linearScalePositionAndIndex)({ xPosition });
+      scheduleOnRN(linearScalePositionAndIndex, { xPosition });
       isActive.value = true;
     }
   }, [at, scaleX]);
@@ -118,13 +118,13 @@ export function LineChartCursor({
         const now = Date.now();
         if (now - lastHapticAt.value >= 50) {
           lastHapticAt.value = now;
-          runOnJS(hapticFeedback)();
+          scheduleOnRN(hapticFeedback);
         }
       }
 
       if (snapToPoint) {
         // We have to run this on the JS thread unfortunately as the scaleLinear functions won't work on UI thread
-        runOnJS(linearScalePositionAndIndex)({ xPosition });
+        scheduleOnRN(linearScalePositionAndIndex, { xPosition });
       } else if (!snapToPoint) {
         currentX.value = xPosition;
         currentIndex.value = boundedIndex;
@@ -132,25 +132,23 @@ export function LineChartCursor({
     }
   };
 
-  const longPressGesture = Gesture.LongPress()
-    .minDuration(minDurationMs ?? 0)
-    .maxDistance(999999)
-    .shouldCancelWhenOutside(shouldCancelWhenOutside)
-    .onStart(
-      (event: GestureStateChangeEvent<LongPressGestureHandlerEventPayload>) => {
-        'worklet';
-        if (parsedPath) {
-          const xPosition = Math.max(0, event.x <= width ? event.x : width);
-          isActive.value = true;
-          updatePosition(xPosition);
+  const longPressGesture = useLongPressGesture({
+    minDuration: minDurationMs ?? 0,
+    maxDistance: 999999,
+    shouldCancelWhenOutside,
+    onActivate: (event: LongPressGestureEvent) => {
+      'worklet';
+      if (parsedPath) {
+        const xPosition = Math.max(0, event.x <= width ? event.x : width);
+        isActive.value = true;
+        updatePosition(xPosition);
 
-          if (onActivated) {
-            runOnJS(onActivated)();
-          }
+        if (onActivated) {
+          scheduleOnRN(onActivated);
         }
       }
-    )
-    .onTouchesMove((event) => {
+    },
+    onTouchesMove: (event) => {
       'worklet';
       if (parsedPath && isActive.value && event.allTouches.length > 0) {
         const xPosition = Math.max(
@@ -159,16 +157,17 @@ export function LineChartCursor({
         );
         updatePosition(xPosition);
       }
-    })
-    .onEnd(() => {
+    },
+    onDeactivate: () => {
       'worklet';
       isActive.value = false;
       currentIndex.value = -1;
 
       if (onEnded) {
-        runOnJS(onEnded)();
+        scheduleOnRN(onEnded);
       }
-    });
+    },
+  });
 
   return (
     <CursorContext.Provider value={{ type }}>

@@ -1,10 +1,7 @@
 import React, { createContext, useMemo } from 'react';
 
-import {
-  runOnJS,
-  useAnimatedReaction,
-  useSharedValue,
-} from 'react-native-reanimated';
+import { useAnimatedReaction, useSharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import type { TLineChartData, TLineChartDataProp } from './types';
 import { LineChartDataProvider } from './Data';
 
@@ -90,10 +87,9 @@ export function LineChartProvider({
     () => currentIndex.value,
     (x, prevX) => {
       if (x !== prevX && onCurrentIndexChange) {
-        runOnJS(onCurrentIndexChange)(x);
+        scheduleOnRN(onCurrentIndexChange, x);
       }
-    },
-    [currentIndex]
+    }
   );
 
   return (

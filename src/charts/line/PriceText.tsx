@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Text } from 'react-native';
 import type { TextProps as RNTextProps } from 'react-native';
 import type { AnimatedProps } from 'react-native-reanimated';
-import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { useLineChartPrice } from './usePrice';
 import { useLineChart } from './useLineChart';
 import type { TFormatterFn } from '../../types';
@@ -68,17 +69,16 @@ export function LineChartPriceText({
       
       // Call format function directly in worklet
       return format({ value: valueString, formatted: valueString });
-    }, [currentIndex, data, precision]);
+    });
     
-    // Use useAnimatedReaction to update React state with runOnJS
+    // Use useAnimatedReaction to update React state with scheduleOnRN
     useAnimatedReaction(
       () => textValue.value,
       (current, previous) => {
         if (current !== previous) {
-          runOnJS(updateText)(current);
+          scheduleOnRN(updateText, current);
         }
-      },
-      [textValue]
+      }
     );
     
     return <Text style={style as RNTextProps['style']}>{displayText}</Text>;

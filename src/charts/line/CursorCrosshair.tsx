@@ -59,8 +59,7 @@ export function LineChartCursorCrosshair({
             : 0,
         },
       ],
-    }),
-    [currentX, currentY, enableSpringAnimation, isActive, outerSize]
+    })
   );
 
   return (

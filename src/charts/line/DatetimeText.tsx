@@ -31,7 +31,7 @@ export function LineChartDatetimeText({
       return value.toString();
     }
     return typeof value === 'object' && 'value' in value ? value.value : String(value);
-  }, [datetime, variant]);
+  });
   
   return <AnimatedText text={text} style={style} />;
 }

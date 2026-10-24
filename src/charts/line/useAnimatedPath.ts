@@ -29,8 +29,7 @@ export default function useAnimatedPath({
         transition.value = 0;
         transition.value = withTiming(1);
       }
-    },
-    [path]
+    }
   );
 
   // Parsing both path strings is expensive (O(points)). Build the

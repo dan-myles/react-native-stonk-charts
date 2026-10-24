@@ -84,7 +84,7 @@ export function LineChartHorizontalLine({
     const offsetTopPixels = gutter + percentageOffsetTop * heightBetweenGutters;
 
     return withTiming(offsetTopPixels + offsetY);
-  }, [at, gutter, height, offsetY, parsedPath, yDomain.max, yDomain.min]);
+  });
 
   const lineAnimatedProps = useAnimatedProps(
     () => ({
@@ -92,8 +92,7 @@ export function LineChartHorizontalLine({
       x2: width,
       y1: y.value,
       y2: y.value,
-    }),
-    [width, y]
+    })
   );
 
   return (

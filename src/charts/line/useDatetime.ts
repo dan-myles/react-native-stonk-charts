@@ -24,7 +24,7 @@ export function useLineChartDatetime({
       return '';
     }
     return data[currentIndex.value]?.timestamp ?? '';
-  }, [currentIndex, data]);
+  });
 
   const formatted = useDerivedValue(() => {
     const formattedDatetime = new Date(timestamp.value).getTime()
@@ -40,7 +40,7 @@ export function useLineChartDatetime({
           formatted: formattedDatetime,
         })
       : formattedDatetime;
-  }, [format, locale, options, timestamp]);
+  });
 
   return { value: new Date(timestamp.value).getTime(), formatted };
 }
