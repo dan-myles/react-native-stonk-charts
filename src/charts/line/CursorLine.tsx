@@ -83,7 +83,7 @@ export function LineChartCursorLine({
     
     const fontSize = textStyle?.fontSize || TEXT_CONSTANTS.DEFAULT_FONT_SIZE;
     return calculateTextWidth(text, fontSize);
-  }, [displayText, textStyle?.fontSize]);
+  });
 
   const lineEndX = useDerivedValue(() => {
     if (!isHorizontal) return 0;
@@ -177,7 +177,7 @@ export function LineChartCursorLine({
     y1: 0,
     x2: lineEndX.value,
     y2: lineEndY.value,
-  }), [lineEndX, lineEndY]);
+  }));
 
   return (
     <LineChartCursor {...cursorProps} type="line">

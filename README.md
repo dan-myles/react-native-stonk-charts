@@ -102,12 +102,18 @@ bun add react-native-stonk-charts
 This library depends on the following packages, which you'll need to install if you don't already have them:
 
 ```bash
-npm install react-native-reanimated react-native-gesture-handler react-native-svg react-native-redash react-native-haptic-feedback
+npm install react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg react-native-haptic-feedback
 ```
 
 ```bash
-bun add react-native-reanimated react-native-gesture-handler react-native-svg react-native-redash react-native-haptic-feedback
+bun add react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg react-native-haptic-feedback
 ```
+
+### Compatibility
+
+Version 5 requires React Native Gesture Handler 3 (`>=3.0.0`) and Reanimated 4 (`>=4.1.0`, with `react-native-worklets >=0.5.0`). For Gesture Handler 2, stay on `react-native-stonk-charts@4`.
+
+`react-native-haptic-feedback` (`>=2.3.3`) is a peer dependency: the library uses your app's copy instead of bundling its own.
 
 **Important:** Make sure you have the Reanimated Babel plugin configured in your `babel.config.js`:
 

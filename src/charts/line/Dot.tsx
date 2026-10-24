@@ -75,11 +75,10 @@ export function LineChartDot({
 
   const x = useDerivedValue(() => {
     return withTiming(getXPositionForCurve(parsedPath, at));
-  }, [at, parsedPath]);
+  });
 
   const y = useDerivedValue(
-    () => withTiming(getYForX(parsedPath!, x.value) || 0),
-    [parsedPath, x]
+    () => withTiming(getYForX(parsedPath!, x.value) || 0)
   );
 
   ////////////////////////////////////////////////////////////
@@ -88,8 +87,7 @@ export function LineChartDot({
     () => ({
       cx: x.value,
       cy: y.value,
-    }),
-    [x, y]
+    })
   );
 
   const animatedOuterDotProps = useAnimatedProps(() => {
@@ -149,7 +147,7 @@ export function LineChartDot({
       opacity: animatedOpacity,
       r: scale,
     };
-  }, [hasPulse, isActive, outerSize, pulseBehaviour, pulseDurationMs, x, y]);
+  });
 
   ////////////////////////////////////////////////////////////
 

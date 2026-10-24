@@ -1,18 +1,17 @@
 import React from 'react';
 import { StyleSheet, ViewProps } from 'react-native';
 import {
-  Gesture,
   GestureDetector,
-  GestureStateChangeEvent,
-  LongPressGestureHandlerEventPayload,
+  LongPressGestureEvent,
+  useLongPressGesture,
 } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   useAnimatedReaction,
-  runOnJS,
   AnimatedProps,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { clamp } from 'react-native-redash';
 
 import { CandlestickChartDimensionsContext } from './Chart';
@@ -58,51 +57,43 @@ export function CandlestickChartCrosshair({
     currentX.value = boundedX - (boundedX % step) + step / 2;
   };
 
-  const longPressGesture = Gesture.LongPress()
-    .minDuration(minDurationMs ?? 0)
-    .maxDistance(999999)
-    .onStart(
-      (event: GestureStateChangeEvent<LongPressGestureHandlerEventPayload>) => {
-        'worklet';
-        opacity.value = 1;
-        updatePosition(event.x, event.y);
-      }
-    )
-    .onTouchesMove((event) => {
+  const longPressGesture = useLongPressGesture({
+    minDuration: minDurationMs ?? 0,
+    maxDistance: 999999,
+    onActivate: (event: LongPressGestureEvent) => {
+      'worklet';
+      opacity.value = 1;
+      updatePosition(event.x, event.y);
+    },
+    onTouchesMove: (event) => {
       'worklet';
       if (opacity.value === 1 && event.allTouches.length > 0) {
         updatePosition(event.allTouches[0]!.x, event.allTouches[0]!.y);
       }
-    })
-    .onEnd(() => {
+    },
+    onDeactivate: () => {
       'worklet';
       opacity.value = 0;
       currentY.value = -1;
       currentX.value = -1;
-    });
-  const horizontal = useAnimatedStyle(
-    () => ({
-      opacity: opacity.value,
-      transform: [{ translateY: currentY.value }],
-    }),
-    [opacity, currentY]
-  );
-  const vertical = useAnimatedStyle(
-    () => ({
-      opacity: opacity.value,
-      transform: [{ translateX: currentX.value }],
-    }),
-    [opacity, currentX]
-  );
+    },
+  });
+  const horizontal = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateY: currentY.value }],
+  }));
+  const vertical = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: currentX.value }],
+  }));
 
   useAnimatedReaction(
     () => currentX.value,
     (data, prevData) => {
       if (data !== -1 && data !== prevData && onCurrentXChange) {
-        runOnJS(onCurrentXChange)(data);
+        scheduleOnRN(onCurrentXChange, data);
       }
-    },
-    [currentX]
+    }
   );
 
   return (

@@ -72,7 +72,7 @@ export function CandlestickChartCrosshairTooltip({
     }
 
     return offset;
-  }, [currentY, elementHeight, height, yGutter]);
+  });
 
   const tooltip = useAnimatedStyle(
     () => ({
@@ -80,24 +80,21 @@ export function CandlestickChartCrosshairTooltip({
       position: 'absolute',
       display: 'flex',
       padding: 4,
-    }),
-    []
+    })
   );
   const leftTooltip = useAnimatedStyle(
     () => ({
       left: xGutter,
       top: -(elementHeight.value / 2) - topOffset.value,
       opacity: position.value === 'left' ? 1 : 0,
-    }),
-    [elementHeight, position, topOffset, xGutter]
+    })
   );
   const rightTooltip = useAnimatedStyle(
     () => ({
       left: width - elementWidth.value - xGutter,
       top: -(elementHeight.value / 2) - topOffset.value,
       opacity: position.value === 'right' ? 1 : 0,
-    }),
-    [elementHeight, elementWidth, position, topOffset, width, xGutter]
+    })
   );
 
   return (

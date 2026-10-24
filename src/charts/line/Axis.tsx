@@ -56,7 +56,7 @@ export const LineChartAxis = ({
     return {
       opacity: hideOnInteraction && isActive.value ? 0 : 1,
     };
-  }, [hideOnInteraction, isActive]);
+  });
 
   const renderTicks = () => {
     const [min, max] = domain;

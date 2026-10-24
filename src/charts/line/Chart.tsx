@@ -115,7 +115,7 @@ export function LineChart({
     }
     const boundedX = Math.min(width, currentX.value);
     return getYForX(parsedPath, boundedX) || 0;
-  }, [hasPath, parsedPath, width, currentX]);
+  });
 
   const contextValue = React.useMemo(
     () => ({
