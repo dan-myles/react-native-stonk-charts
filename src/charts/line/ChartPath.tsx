@@ -2,7 +2,8 @@ import * as React from "react";
 import flattenChildren from "react-keyed-flatten-children";
 import { View, StyleSheet } from "react-native";
 import Animated, {
-  useAnimatedProps,
+  useAnimatedReaction,
+  useAnimatedStyle,
   useSharedValue,
   withTiming,
   WithTimingConfig,
@@ -23,7 +24,8 @@ const BACKGROUND_COMPONENTS = [
 ];
 const FOREGROUND_COMPONENTS = ["LineChartHighlight", "LineChartDot"];
 
-const AnimatedSVG = Animated.createAnimatedComponent(Svg);
+/** The reveal at rest: wider than any chart, so a resting clip never cuts the line however far live ticks grow it. */
+const REST = 1e6;
 
 type LineChartPathWrapperProps = {
   animationDuration?: number;
@@ -60,51 +62,61 @@ export function LineChartPathWrapper({
   mountAnimationDuration = animationDuration,
   mountAnimationProps = animationProps,
 }: LineChartPathWrapperProps) {
-  const { height, pathWidth, width } = React.useContext(
-    LineChartDimensionsContext,
-  );
+  const { height, width } = React.useContext(LineChartDimensionsContext);
   const { currentX, isActive } = useLineChart();
-  const isMounted = useSharedValue(false);
-  const hasMountedAnimation = useSharedValue(false);
-
-  React.useEffect(() => {
-    isMounted.value = true;
-  }, []);
 
   ////////////////////////////////////////////////
 
-  const svgProps = useAnimatedProps(() => {
-    const shouldAnimateOnMount = animateOnMount === "foreground";
-    const inactiveWidth =
-      !isMounted.value && shouldAnimateOnMount ? 0 : pathWidth;
+  // The active layer is revealed up to `reveal` by two opposite translations:
+  // a clipping view moves to end at `reveal` while the layer inside moves back
+  // to x = 0. Scrubbing and lift then animate transforms only; the SVGs never
+  // resize or redraw.
+  const capacity = width + widthOffset;
+  const reveal = useSharedValue(animateOnMount === "foreground" ? 0 : REST);
 
-    let duration =
-      shouldAnimateOnMount && !hasMountedAnimation.value
-        ? mountAnimationDuration
-        : animationDuration;
-    const props =
-      shouldAnimateOnMount && !hasMountedAnimation.value
-        ? mountAnimationProps
-        : animationProps;
-
-    if (isActive.value) {
-      duration = 0;
-    }
-
-    return {
-      width: withTiming(
-        isActive.value
-          ? // on Web, <svg /> elements don't support negative widths
-            // https://github.com/coinjar/react-native-wagmi-charts/issues/24#issuecomment-955789904
-            Math.max(currentX.value, 0)
-          : inactiveWidth + widthOffset,
-        Object.assign({ duration }, props),
-        () => {
-          hasMountedAnimation.value = true;
+  React.useEffect(() => {
+    if (animateOnMount === "foreground") {
+      reveal.value = withTiming(
+        capacity,
+        Object.assign({ duration: mountAnimationDuration }, mountAnimationProps),
+        (finished) => {
+          if (finished) {
+            reveal.value = REST;
+          }
         },
-      ),
-    };
-  });
+      );
+    }
+    // Mount only.
+  }, []);
+
+  useAnimatedReaction(
+    () => (isActive.value ? Math.max(currentX.value, 0) : -1),
+    (target, previous) => {
+      if (target >= 0) {
+        reveal.value = target;
+        return;
+      }
+      if (previous !== null && previous >= 0) {
+        reveal.value = withTiming(
+          capacity,
+          Object.assign({ duration: animationDuration }, animationProps),
+          (finished) => {
+            if (finished) {
+              reveal.value = REST;
+            }
+          },
+        );
+      }
+    },
+    [capacity, animationDuration],
+  );
+
+  const clipStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: Math.min(reveal.value, capacity) - capacity }],
+  }));
+  const layerStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: capacity - Math.min(reveal.value, capacity) }],
+  }));
 
   const viewSize = React.useMemo(() => ({ width, height }), [width, height]);
 
@@ -154,35 +166,52 @@ export function LineChartPathWrapper({
           isTransitionEnabled: pathProps.isTransitionEnabled ?? true,
         }}
       >
-        <View style={[StyleSheet.absoluteFill, styles.glowWrapper, glow && { shadowColor: glow }]}>
-          <AnimatedSVG animatedProps={svgProps} height={height}>
-            <Defs>
-              <LinearGradient id="lineGradient" x1="0" y1="0" x2="100%" y2="0">
-                <Stop offset="0%" stopColor={gradientColors[0]} />
-                <Stop offset="100%" stopColor={gradientColors[1]} />
-              </LinearGradient>
-            </Defs>
-
-            <LineChartPath
-              stroke="url(#lineGradient)" // use the gradient as the stroke
-              width={strokeWidth}
-              {...pathProps}
-            />
-          </AnimatedSVG>
-
-          <AnimatedSVG
-            animatedProps={svgProps}
-            height={height}
-            style={StyleSheet.absoluteFill}
+        <Animated.View
+          style={[styles.clip, { width: capacity, height }, clipStyle]}
+        >
+          <Animated.View
+            style={[
+              { width: capacity, height },
+              styles.glowWrapper,
+              glow && { shadowColor: glow },
+              layerStyle,
+            ]}
           >
-            {foregroundChildren}
-          </AnimatedSVG>
-        </View>
+            <Svg width={width} height={height}>
+              <Defs>
+                <LinearGradient id="lineGradient" x1="0" y1="0" x2="100%" y2="0">
+                  <Stop offset="0%" stopColor={gradientColors[0]} />
+                  <Stop offset="100%" stopColor={gradientColors[1]} />
+                </LinearGradient>
+              </Defs>
+
+              <LineChartPath
+                stroke="url(#lineGradient)" // use the gradient as the stroke
+                width={strokeWidth}
+                {...pathProps}
+              />
+            </Svg>
+
+            <Svg
+              width={width}
+              height={height}
+              style={StyleSheet.absoluteFill}
+            >
+              {foregroundChildren}
+            </Svg>
+          </Animated.View>
+        </Animated.View>
       </LineChartPathContext.Provider>
     </>
   );
 }
 const styles = StyleSheet.create({
+  clip: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    overflow: "hidden",
+  },
   glowWrapper: {
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.7,
