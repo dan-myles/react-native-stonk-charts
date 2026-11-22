@@ -102,18 +102,18 @@ bun add react-native-stonk-charts
 This library depends on the following packages, which you'll need to install if you don't already have them:
 
 ```bash
-npm install react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg react-native-haptic-feedback
+npm install react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg
 ```
 
 ```bash
-bun add react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg react-native-haptic-feedback
+bun add react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg
 ```
 
 ### Compatibility
 
 Version 5 requires React Native Gesture Handler 3 (`>=3.0.0`) and Reanimated 4 (`>=4.1.0`, with `react-native-worklets >=0.5.0`). For Gesture Handler 2, stay on `react-native-stonk-charts@4`.
 
-`react-native-haptic-feedback` (`>=2.3.3`) is a peer dependency: the library uses your app's copy instead of bundling its own.
+The library plays no haptics itself. Pass `onHaptic` to a line cursor to play your own (see [Haptic feedback](#haptic-feedback)).
 
 **Important:** Make sure you have the Reanimated Babel plugin configured in your `babel.config.js`:
 
@@ -336,7 +336,13 @@ Note that the tooltip will disappear when there is interaction with a cursor on 
 
 By making use of the chart event handlers, you are able to integrate haptic feedback into your charts.
 
-We can utilise the `onActivated` and `onEnded` events to create haptic feedback
+A line cursor's `onHaptic` is called each time the cursor moves onto a new data point, at most every 50 ms, so a scrub ticks under the finger without flooding the haptic engine:
+
+```jsx
+<LineChart.CursorCrosshair onHaptic={() => haptics.selectionAsync()} />
+```
+
+We can also utilise the `onActivated` and `onEnded` events to create haptic feedback
 on our line chart. This will cause a vibration on touch down/up.
 
 ```jsx

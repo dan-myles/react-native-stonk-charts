@@ -2,7 +2,6 @@ import React from 'react';
 
 import Animated, { useSharedValue } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
-import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 import {
   GestureDetector,
   LongPressGestureEvent,
@@ -25,14 +24,12 @@ export type LineChartCursorProps = {
   minDurationMs?: number;
   onActivated?: () => void;
   onEnded?: () => void;
+  /** Called when the cursor moves onto a new data point, at most every 50ms, such as to play a haptic. */
+  onHaptic?: () => void;
   orientation?: 'horizontal' | 'vertical';
 };
 
 export const CursorContext = React.createContext({ type: '' });
-
-const hapticFeedback = () => {
-  ReactNativeHapticFeedback.trigger("impactLight");
-};
 
 LineChartCursor.displayName = 'LineChartCursor';
 
@@ -45,6 +42,7 @@ export function LineChartCursor({
   minDurationMs = 0,
   onActivated,
   onEnded,
+  onHaptic,
 }: LineChartCursorProps) {
   const { pathWidth: width, parsedPath } = React.useContext(
     LineChartDimensionsContext
@@ -114,11 +112,11 @@ export function LineChartCursor({
       // Haptic only when the cursor crosses onto a new data point, at most
       // every 50ms. Firing per touch-move event floods the JS thread and the
       // haptic engine (~60+ calls/sec at 120Hz).
-      if (boundedIndex !== currentIndex.value) {
+      if (onHaptic && boundedIndex !== currentIndex.value) {
         const now = Date.now();
         if (now - lastHapticAt.value >= 50) {
           lastHapticAt.value = now;
-          scheduleOnRN(hapticFeedback);
+          scheduleOnRN(onHaptic);
         }
       }
 
