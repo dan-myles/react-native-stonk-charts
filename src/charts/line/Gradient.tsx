@@ -31,6 +31,7 @@ export function LineChartGradient({
   const { animatedProps } = useAnimatedPath({
     enabled: isTransitionEnabled,
     path: area,
+    kind: 'area',
   });
 
   ////////////////////////////////////////////////

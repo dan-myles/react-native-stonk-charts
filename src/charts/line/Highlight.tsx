@@ -40,6 +40,7 @@ export function LineChartHighlight({
   const { animatedProps } = useAnimatedPath({
     enabled: isTransitionEnabled,
     path,
+    kind: 'line',
   });
 
   ////////////////////////////////////////////////
@@ -66,6 +67,7 @@ export function LineChartHighlight({
         fill="transparent"
         stroke={isInactive ? inactiveColor || color : color}
         strokeWidth={strokeWidth}
+        strokeLinejoin="round"
         strokeOpacity={isInactive && !inactiveColor ? 0.5 : 1}
         {...props}
       />

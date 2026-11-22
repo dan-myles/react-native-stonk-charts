@@ -6,8 +6,27 @@ import { Dimensions, StyleSheet, View, ViewProps } from 'react-native';
 import { LineChartIdProvider, useLineChartData } from './Data';
 import { getYForX, Path, parse } from 'react-native-redash';
 import type { SharedValue } from 'react-native-reanimated';
-import { useDerivedValue } from 'react-native-reanimated';
+import {
+  useAnimatedReaction,
+  useDerivedValue,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { getArea, getPath } from './utils';
+import {
+  buildArea,
+  buildLine,
+  Curve,
+  EMPTY_VERTICES,
+  Geometry,
+  getCurve,
+  getVertices,
+  lerpVertices,
+  resample,
+  sameVertices,
+  Vertices,
+  yForX,
+} from './utils/geometry';
 
 import { LineChartContext } from './Context';
 
@@ -22,6 +41,13 @@ export const LineChartDimensionsContext = React.createContext({
   gutter: 0,
   pathWidth: 0,
   currentY: { value: -1 } as SharedValue<number>,
+  /**
+   * The drawn line and area, shared by every path that animates. It morphs
+   * once per chart on a data or size change. `null` when `shape` is not
+   * `curveBumpX` or `curveLinear`; those paths morph on their own.
+   */
+  geometry: null as SharedValue<Geometry> | null,
+  curve: 'bumpX' as Curve | null,
 });
 
 type LineChartProps = ViewProps & {
@@ -100,6 +126,66 @@ export function LineChart({
   }, [data, pathWidth, chartDrawingHeight, yGutter, shape, yDomain, xDomain]);
 
   const parsedPath = React.useMemo(() => parse(path), [path]);
+
+  const curve = getCurve(shape);
+  const vertices = React.useMemo(() => {
+    if (!curve || !data || data.length === 0) {
+      return EMPTY_VERTICES;
+    }
+    return getVertices({
+      data,
+      width: pathWidth,
+      height: chartDrawingHeight,
+      gutter: yGutter,
+      yDomain,
+      xDomain,
+    });
+  }, [curve, data, pathWidth, chartDrawingHeight, yGutter, yDomain, xDomain]);
+
+  // One morph per chart. JS only writes `pending`; the reaction owns
+  // `from`, `to` and `progress`, so the derived geometry never draws the new
+  // target for a frame before the morph starts. A switch mid-morph starts
+  // from the shape on screen.
+  const pending = useSharedValue<Vertices>(EMPTY_VERTICES);
+  const from = useSharedValue<Vertices>(EMPTY_VERTICES);
+  const to = useSharedValue<Vertices>(EMPTY_VERTICES);
+  const progress = useSharedValue(1);
+
+  React.useEffect(() => {
+    pending.value = vertices;
+  }, [pending, vertices]);
+
+  useAnimatedReaction(
+    () => pending.value,
+    (next) => {
+      if (!curve || sameVertices(next, to.value)) {
+        return;
+      }
+      const drawn = lerpVertices(from.value, to.value, progress.value);
+      if (drawn.xs.length < 2 || next.xs.length < 2) {
+        from.value = next;
+        to.value = next;
+        progress.value = 1;
+        return;
+      }
+      from.value = resample(drawn, next, curve);
+      to.value = next;
+      progress.value = 0;
+      progress.value = withTiming(1);
+    },
+    [curve]
+  );
+
+  const geometry = useDerivedValue<Geometry>(() => {
+    const drawn = lerpVertices(from.value, to.value, progress.value);
+    const line = curve ? buildLine(drawn.xs, drawn.ys, curve) : '';
+    return {
+      xs: drawn.xs,
+      ys: drawn.ys,
+      line,
+      area: buildArea(line, drawn.xs, drawn.ys, chartDrawingHeight),
+    };
+  });
   const pointWidth = React.useMemo(
     () => width / (data ? data.length - 1 : 1),
     [data, width]
@@ -114,6 +200,9 @@ export function LineChart({
       return -1;
     }
     const boundedX = Math.min(width, currentX.value);
+    if (curve) {
+      return yForX(geometry.value.xs, geometry.value.ys, boundedX, curve);
+    }
     return getYForX(parsedPath, boundedX) || 0;
   });
 
@@ -129,6 +218,8 @@ export function LineChart({
       pathWidth,
       shape,
       currentY,
+      geometry: curve ? geometry : null,
+      curve,
     }),
     [
       yGutter,
@@ -141,6 +232,8 @@ export function LineChart({
       pathWidth,
       shape,
       currentY,
+      geometry,
+      curve,
     ]
   );
 

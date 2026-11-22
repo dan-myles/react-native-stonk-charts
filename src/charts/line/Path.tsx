@@ -47,6 +47,7 @@ export function LineChartPath({
   const { animatedProps } = useAnimatedPath({
     enabled: isTransitionEnabled,
     path,
+    kind: 'line',
   });
 
   ////////////////////////////////////////////////
@@ -59,6 +60,7 @@ export function LineChartPath({
         stroke={isInactive ? inactiveColor || color : color}
         strokeOpacity={isInactive && !inactiveColor ? 0.2 : 1}
         strokeWidth={strokeWidth}
+        strokeLinejoin="round"
         {...props}
       />
     </>
