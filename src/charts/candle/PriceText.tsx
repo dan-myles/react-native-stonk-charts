@@ -12,6 +12,8 @@ export type CandlestickChartPriceTextProps = {
   variant?: 'formatted' | 'value';
   type?: TPriceType;
   style?: AnimatedProps<RNTextProps>['style'];
+  /** Whether the text scales with the system font size. Defaults to React Native's `true`. */
+  allowFontScaling?: boolean;
 };
 
 export function CandlestickChartPriceText({
@@ -20,7 +22,8 @@ export function CandlestickChartPriceText({
   variant = 'formatted',
   type = 'crosshair',
   style,
+  allowFontScaling,
 }: CandlestickChartPriceTextProps) {
   const price = useCandlestickChartPrice({ format, precision, type });
-  return <AnimatedText text={price[variant]} style={style} />;
+  return <AnimatedText text={price[variant]} style={style} allowFontScaling={allowFontScaling} />;
 }

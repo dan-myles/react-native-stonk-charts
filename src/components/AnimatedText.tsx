@@ -12,11 +12,13 @@ Animated.addWhitelistedUIProps({ text: true });
 interface AnimatedTextProps {
   text: SharedValue<string>;
   style?: AnimatedProps<RNTextProps>['style'];
+  /** Whether the text scales with the system font size. Defaults to React Native's `true`. */
+  allowFontScaling?: boolean;
 }
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
 
-export const AnimatedText = ({ text, style }: AnimatedTextProps) => {
+export const AnimatedText = ({ text, style, allowFontScaling }: AnimatedTextProps) => {
   const animatedProps = useAnimatedProps(() => ({
     text: text.value,
   })) as Partial<React.ComponentProps<typeof TextInput>>;
@@ -24,6 +26,7 @@ export const AnimatedText = ({ text, style }: AnimatedTextProps) => {
     <AnimatedTextInput
       underlineColorAndroid="transparent"
       editable={false}
+      allowFontScaling={allowFontScaling}
       style={[styles.text, style]}
       animatedProps={animatedProps}
     />

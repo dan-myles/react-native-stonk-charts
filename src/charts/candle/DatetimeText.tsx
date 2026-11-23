@@ -12,6 +12,8 @@ type CandlestickChartPriceTextProps = {
   format?: TFormatterFn<number>;
   variant?: 'formatted' | 'value';
   style?: AnimatedProps<RNTextProps>['style'];
+  /** Whether the text scales with the system font size. Defaults to React Native's `true`. */
+  allowFontScaling?: boolean;
 };
 
 export function CandlestickChartDatetimeText({
@@ -20,7 +22,8 @@ export function CandlestickChartDatetimeText({
   format,
   variant = 'formatted',
   style,
+  allowFontScaling,
 }: CandlestickChartPriceTextProps) {
   const datetime = useCandlestickChartDatetime({ format, locale, options });
-  return <AnimatedText text={datetime[variant]} style={style} />;
+  return <AnimatedText text={datetime[variant]} style={style} allowFontScaling={allowFontScaling} />;
 }
