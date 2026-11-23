@@ -3,6 +3,8 @@ import * as d3Shape from 'd3-shape';
 // @ts-ignore
 import { scaleLinear } from 'd3-scale';
 
+import { getYForX, type Path } from 'react-native-redash';
+
 import type { TLineChartData, YDomain } from '../types';
 
 /** A series in pixels: one X and one Y per vertex, X ascending. */
@@ -48,8 +50,28 @@ export function getPointXs(
   const span = scale.end - scale.start;
   return data.map(({ timestamp }, i) => {
     const t = xDomain ? timestamp : i;
-    return span === 0 ? 0 : ((t - scale.start) / span) * scale.width;
+    // d3 puts a lone point in the middle; so does this.
+    return span === 0 ? scale.width / 2 : ((t - scale.start) / span) * scale.width;
   });
+}
+
+/**
+ * A curve the shared morph doesn't draw, sampled every 1 pt from its parsed
+ * d3 path, so the cursor and decorations sit on the curve as drawn.
+ */
+export function sampleCurve(path: Path): Vertices {
+  const start = path.move.x;
+  const last = path.curves[path.curves.length - 1];
+  const end = last ? last.to.x : start;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let x = start; x < end; x++) {
+    xs.push(round(x));
+    ys.push(round(getYForX(path, x) ?? path.move.y));
+  }
+  xs.push(round(end));
+  ys.push(round(last ? last.to.y : path.move.y));
+  return { xs, ys };
 }
 
 /** Index of the point nearest `x`; `xs` ascending and non-empty. */
@@ -296,4 +318,28 @@ export function sameVertices(a: Vertices, b: Vertices): boolean {
     }
   }
   return true;
+}
+
+/**
+ * Where data index `index` sits on the drawn shape: its place along the
+ * series, carried onto the shape on screen, so a dot or tooltip at an index
+ * rides the line through a morph and lands on the point at rest.
+ */
+export function pointAt(
+  drawn: Vertices,
+  points: number[],
+  index: number,
+  curve: Curve
+): { x: number; y: number } {
+  'worklet';
+  const count = points.length;
+  if (count === 0 || drawn.xs.length === 0) {
+    return { x: -1, y: -1 };
+  }
+  const i = Math.max(0, Math.min(count - 1, Math.round(index)));
+  const span = points[count - 1]! - points[0]!;
+  const fraction = span === 0 ? 0 : (points[i]! - points[0]!) / span;
+  const start = drawn.xs[0]!;
+  const x = start + fraction * (drawn.xs[drawn.xs.length - 1]! - start);
+  return { x, y: yForX(drawn.xs, drawn.ys, x, curve) };
 }

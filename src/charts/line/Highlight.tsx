@@ -1,10 +1,15 @@
 import * as React from 'react';
-import { AnimatedProps } from 'react-native-reanimated';
+import Animated, {
+  AnimatedProps,
+  useAnimatedProps,
+} from 'react-native-reanimated';
 import { ClipPath, Defs, G, PathProps, Rect } from 'react-native-svg';
-import { LineChartDimensionsContext } from './Chart';
+import { LineChartGeometryContext } from './Chart';
 import { LineChartPathContext } from './LineChartPathContext';
 import { AnimatedChartPath } from './useAnimatedPath';
-import { getXPositionForCurve } from './utils/getXPositionForCurve';
+import { pointAt } from './utils/geometry';
+
+const AnimatedRect = Animated.createAnimatedComponent(Rect);
 
 export type LineChartColorProps = AnimatedProps<PathProps> & {
   color?: string;
@@ -26,26 +31,32 @@ export function LineChartHighlight({
   width: strokeWidth = 3,
   ...props
 }: LineChartColorProps) {
-  const { parsedPath, height } = React.useContext(
-    LineChartDimensionsContext
+  const { geometry, end, points, curve, height } = React.useContext(
+    LineChartGeometryContext
   );
+  const shape = curve ?? 'linear';
   const { isTransitionEnabled, isInactive: _isInactive } =
     React.useContext(LineChartPathContext);
   const isInactive = showInactiveColor && _isInactive;
 
   ////////////////////////////////////////////////
 
-  const clipStart = getXPositionForCurve(parsedPath, from);
-  const clipEnd = getXPositionForCurve(parsedPath, to);
+  // The clip follows the drawn shape through a morph, or sits on the target
+  // when the path doesn't morph.
+  const source = isTransitionEnabled ? geometry : end;
+  const clipProps = useAnimatedProps(() => {
+    const left = pointAt(source.value, points.value, from, shape).x;
+    const right = pointAt(source.value, points.value, to, shape).x;
+    return { x: left, width: Math.max(right - left, 0) };
+  });
 
   return (
     <G>
       <Defs>
         <ClipPath id="clip">
-          <Rect
-            x={clipStart}
+          <AnimatedRect
+            animatedProps={clipProps}
             y="0"
-            width={clipEnd - clipStart}
             height={height}
             fill="white"
           />

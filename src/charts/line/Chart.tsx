@@ -25,6 +25,7 @@ import {
   getXScale,
   lerpVertices,
   resample,
+  sampleCurve,
   sameVertices,
   Vertices,
   XScale,
@@ -65,10 +66,12 @@ export const LineChartGeometryContext = React.createContext({
   width: 0,
   height: 0,
   curve: 'bumpX' as Curve | null,
-  /** The drawn line and area, morphing. */
+  /** The drawn vertices, line and area, morphing. With another curve the strings are empty and only the vertices morph. */
   geometry: { value: { xs: [], ys: [], line: '', area: '' } } as unknown as SharedValue<Geometry>,
   /** The line and area the morph is heading to, for paths with transitions off. */
   target: { value: { line: '', area: '' } } as SharedValue<Shapes>,
+  /** The vertices the morph is heading to, for decorations with transitions off. */
+  end: { value: { xs: [], ys: [] } } as unknown as SharedValue<Vertices>,
   currentY: { value: -1 } as SharedValue<number>,
   /** Each data point's X, by index. */
   points: { value: [] } as unknown as SharedValue<number[]>,
@@ -154,8 +157,11 @@ export function LineChart({
 
   const curve = getCurve(shape);
   const vertices = React.useMemo(() => {
-    if (!curve || !data || data.length === 0) {
+    if (!data || data.length === 0) {
       return EMPTY_VERTICES;
+    }
+    if (!curve) {
+      return sampleCurve(parsedPath);
     }
     return getVertices({
       data,
@@ -165,70 +171,96 @@ export function LineChart({
       yDomain,
       xDomain,
     });
-  }, [curve, data, pathWidth, chartDrawingHeight, yGutter, yDomain, xDomain]);
+  }, [curve, parsedPath, data, pathWidth, chartDrawingHeight, yGutter, yDomain, xDomain]);
+
+  const xScale = React.useMemo(
+    () => getXScale(data ?? [], pathWidth, xDomain),
+    [data, pathWidth, xDomain]
+  );
+  const pointXs = React.useMemo(
+    () => getPointXs(data ?? [], xScale, xDomain),
+    [data, xScale, xDomain]
+  );
 
   // One morph per chart. JS only writes `pending`; the reaction owns
-  // `from`, `to` and `progress`, so the derived geometry never draws the new
-  // target for a frame before the morph starts. A switch mid-morph starts
-  // from the shape on screen.
-  const pending = useSharedValue<Vertices>(EMPTY_VERTICES);
-  const from = useSharedValue<Vertices>(EMPTY_VERTICES);
-  const to = useSharedValue<Vertices>(EMPTY_VERTICES);
+  // `from`, `to`, `end` and `progress`, so the derived geometry never draws
+  // the new target for a frame before the morph starts. A switch mid-morph
+  // starts from the shape on screen. Everything starts at the first render's
+  // data, so the first frame already draws the line.
+  const pending = useSharedValue<Vertices>(vertices);
+  const from = useSharedValue<Vertices>(vertices);
+  const to = useSharedValue<Vertices>(vertices);
+  /** The real target. `to` holds it resampled while a morph runs to fewer vertices. */
+  const end = useSharedValue<Vertices>(vertices);
   const progress = useSharedValue(1);
 
-  const points = useSharedValue<number[]>([]);
-  const scale = useSharedValue<XScale>({ start: 0, end: 0, width: 0 });
+  const points = useSharedValue<number[]>(pointXs);
+  const scale = useSharedValue<XScale>(xScale);
 
   React.useEffect(() => {
     pending.value = vertices;
   }, [pending, vertices]);
 
   React.useEffect(() => {
-    const rows = data ?? [];
-    const next = getXScale(rows, pathWidth, xDomain);
-    scale.value = next;
-    points.value = getPointXs(rows, next, xDomain);
-  }, [data, pathWidth, xDomain, points, scale]);
+    scale.value = xScale;
+    points.value = pointXs;
+  }, [xScale, pointXs, points, scale]);
 
   useAnimatedReaction(
     () => pending.value,
     (next) => {
-      if (!curve || sameVertices(next, to.value)) {
+      if (sameVertices(next, end.value)) {
         return;
       }
       const drawn = lerpVertices(from.value, to.value, progress.value);
+      end.value = next;
       if (drawn.xs.length < 2 || next.xs.length < 2) {
         from.value = next;
         to.value = next;
         progress.value = 1;
         return;
       }
-      from.value = resample(drawn, next, curve);
-      to.value = next;
+      // Both sides of the morph get the larger vertex count, so neither
+      // shape loses detail. A morph to fewer vertices runs on the target
+      // resampled to the drawn count and swaps in the real target at the end.
+      const shape = curve ?? 'linear';
+      if (next.xs.length >= drawn.xs.length) {
+        from.value = resample(drawn, next, shape);
+        to.value = next;
+      } else {
+        from.value = drawn;
+        to.value = resample(next, drawn, shape);
+      }
       progress.value = 0;
-      progress.value = withTiming(1);
-    },
-    [curve]
+      progress.value = withTiming(1, undefined, (finished) => {
+        if (finished) {
+          from.value = end.value;
+          to.value = end.value;
+        }
+      });
+    }
   );
 
   const geometry = useDerivedValue<Geometry>(() => {
     const drawn = lerpVertices(from.value, to.value, progress.value);
+    // Every curve keeps the drawn vertices, for the cursor and decorations;
+    // only the fast curves draw their strings from them.
     const line = curve ? buildLine(drawn.xs, drawn.ys, curve) : '';
     return {
       xs: drawn.xs,
       ys: drawn.ys,
       line,
-      area: buildArea(line, drawn.xs, drawn.ys, chartDrawingHeight),
+      area: curve ? buildArea(line, drawn.xs, drawn.ys, chartDrawingHeight) : '',
     };
   });
   const target = useDerivedValue<Shapes>(() => {
     if (!curve) {
       return { line: '', area: '' };
     }
-    const line = buildLine(to.value.xs, to.value.ys, curve);
+    const line = buildLine(end.value.xs, end.value.ys, curve);
     return {
       line,
-      area: buildArea(line, to.value.xs, to.value.ys, chartDrawingHeight),
+      area: buildArea(line, end.value.xs, end.value.ys, chartDrawingHeight),
     };
   });
 
@@ -290,11 +322,12 @@ export function LineChart({
       curve,
       geometry,
       target,
+      end,
       currentY,
       points,
       scale,
     }),
-    [width, height, curve, geometry, target, currentY, points, scale]
+    [width, height, curve, geometry, target, end, currentY, points, scale]
   );
 
   return (

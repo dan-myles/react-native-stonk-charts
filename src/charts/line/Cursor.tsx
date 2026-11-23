@@ -52,20 +52,24 @@ export function LineChartCursor({
   const lastHapticAt = useSharedValue(0);
 
   // `at` is a timestamp when the provider has an `xDomain`, else an index.
+  // It moves the cursor when `at` or the X scale changes, not on every tick.
   useAnimatedReaction(
-    () => points.value,
-    (xs) => {
+    () => {
+      const { start, end, width } = scale.value;
+      return `${points.value.length}:${start}:${end}:${width}`;
+    },
+    () => {
+      const xs = points.value;
       if (at === undefined || xs.length === 0) {
         return;
       }
       const { start, end, width } = scale.value;
-      const x = end === start ? 0 : ((at - start) / (end - start)) * width;
+      const x = end === start ? width / 2 : ((at - start) / (end - start)) * width;
       const index = nearestIndex(xs, x);
       currentIndex.value = index;
       currentX.value = xs[index]!;
       isActive.value = true;
-    },
-    [at]
+    }
   );
 
   const updatePosition = (x: number) => {
