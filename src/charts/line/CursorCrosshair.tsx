@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { LineChartCursor, LineChartCursorProps } from './Cursor';
-import { useLineChart } from './useLineChart';
+import { useLineChartCursor } from './useLineChart';
 
 type LineChartCursorCrosshairProps = Omit<
   LineChartCursorProps,
@@ -22,9 +22,8 @@ type LineChartCursorCrosshairProps = Omit<
   crosshairOuterProps?: ViewProps;
 };
 
-LineChartCursorCrosshair.displayName = 'LineChartCursorCrosshair';
-
-export function LineChartCursorCrosshair({
+/** Memoized: it reads the chart through shared values, so a parent's re-render on new data skips it. */
+export const LineChartCursorCrosshair = React.memo(function LineChartCursorCrosshair({
   children,
   color = 'black',
   size = 8,
@@ -34,7 +33,7 @@ export function LineChartCursorCrosshair({
   crosshairOuterProps = {},
   ...props
 }: LineChartCursorCrosshairProps) {
-  const { currentX, currentY, isActive } = useLineChart();
+  const { currentX, currentY, isActive } = useLineChartCursor();
 
   // It seems that enabling spring animation on initial render on Android causes a crash.
   const [enableSpringAnimation, setEnableSpringAnimation] = React.useState(
@@ -105,7 +104,8 @@ export function LineChartCursorCrosshair({
       {children}
     </LineChartCursor>
   );
-}
+});
+LineChartCursorCrosshair.displayName = 'LineChartCursorCrosshair';
 
 const styles = StyleSheet.create({
   crosshairWrapper: {

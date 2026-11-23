@@ -27,6 +27,8 @@ export type LineChartPriceTextProps = {
    * Function to determine text color based on the formatted value
    */
   getTextColor?: (formattedValue: string) => string;
+  /** Whether the text scales with the system font size. Defaults to React Native's `true`. */
+  allowFontScaling?: boolean;
 };
 
 LineChartPriceText.displayName = 'LineChartPriceText';
@@ -38,6 +40,7 @@ export function LineChartPriceText({
   style,
   index,
   useOptimizedRendering = false,
+  allowFontScaling,
 }: LineChartPriceTextProps) {
   
   const price = useLineChartPrice({ format, precision, index });
@@ -81,9 +84,13 @@ export function LineChartPriceText({
       }
     );
     
-    return <Text style={style as RNTextProps['style']}>{displayText}</Text>;
+    return (
+      <Text allowFontScaling={allowFontScaling} style={style as RNTextProps['style']}>
+        {displayText}
+      </Text>
+    );
   }
   
   // For non-custom format, use the original approach
-  return <AnimatedText text={price[variant]} style={style} />;
+  return <AnimatedText text={price[variant]} style={style} allowFontScaling={allowFontScaling} />;
 }

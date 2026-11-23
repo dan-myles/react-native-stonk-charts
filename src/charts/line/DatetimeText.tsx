@@ -12,6 +12,8 @@ type LineChartDatetimeProps = {
   format?: TFormatterFn<number>;
   variant?: 'formatted' | 'value';
   style?: AnimatedProps<RNTextProps>['style'];
+  /** Whether the text scales with the system font size. Defaults to React Native's `true`. */
+  allowFontScaling?: boolean;
 };
 
 LineChartDatetimeText.displayName = 'LineChartDatetimeText';
@@ -22,6 +24,7 @@ export function LineChartDatetimeText({
   format,
   variant = 'formatted',
   style,
+  allowFontScaling,
 }: LineChartDatetimeProps) {
   const datetime = useLineChartDatetime({ format, locale, options });
   
@@ -33,5 +36,5 @@ export function LineChartDatetimeText({
     return typeof value === 'object' && 'value' in value ? value.value : String(value);
   });
   
-  return <AnimatedText text={text} style={style} />;
+  return <AnimatedText text={text} style={style} allowFontScaling={allowFontScaling} />;
 }

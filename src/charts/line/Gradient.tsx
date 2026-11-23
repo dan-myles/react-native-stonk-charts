@@ -1,11 +1,8 @@
 import * as React from 'react';
-import Animated, { AnimatedProps } from 'react-native-reanimated';
-import { Defs, LinearGradient, Stop, Path, PathProps } from 'react-native-svg';
-import { LineChartDimensionsContext } from './Chart';
+import { AnimatedProps } from 'react-native-reanimated';
+import { Defs, LinearGradient, Stop, PathProps } from 'react-native-svg';
 import { LineChartPathContext } from './LineChartPathContext';
-import useAnimatedPath from './useAnimatedPath';
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+import { AnimatedChartPath } from './useAnimatedPath';
 
 export type LineChartGradientProps = AnimatedProps<PathProps> & {
   color?: string;
@@ -21,17 +18,9 @@ export function LineChartGradient({
   children,
   ...props
 }: LineChartGradientProps) {
-  const { area } = React.useContext(LineChartDimensionsContext);
   const { color: contextColor, isTransitionEnabled } =
     React.useContext(LineChartPathContext);
   const color = overrideColor || contextColor;
-
-  ////////////////////////////////////////////////
-
-  const { animatedProps } = useAnimatedPath({
-    enabled: isTransitionEnabled,
-    path: area,
-  });
 
   ////////////////////////////////////////////////
 
@@ -69,8 +58,9 @@ export function LineChartGradient({
           </LinearGradient>
         </Defs>
       )}
-      <AnimatedPath
-        animatedProps={animatedProps}
+      <AnimatedChartPath
+        kind="area"
+        enabled={isTransitionEnabled}
         fill={`url(#${localId.current})`}
         {...props}
       />

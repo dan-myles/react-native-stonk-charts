@@ -76,6 +76,7 @@ A sweet & simple chart library for React Native with beautiful animations and in
   - [CandlestickChart.DatetimeText](#candlestickchartdatetimetext)
 - [Hooks](#hooks)
   - [LineChart.useChart](#linechartusechart)
+  - [LineChart.useCursor](#linechartusecursor)
   - [LineChart.useDatetime](#linechartusedatetime)
   - [LineChart.usePrice](#linechartuseprice)
   - [CandlestickChart.useChart](#candlestickchartusechart)
@@ -102,18 +103,18 @@ bun add react-native-stonk-charts
 This library depends on the following packages, which you'll need to install if you don't already have them:
 
 ```bash
-npm install react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg react-native-haptic-feedback
+npm install react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg
 ```
 
 ```bash
-bun add react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg react-native-haptic-feedback
+bun add react-native-reanimated react-native-worklets react-native-gesture-handler react-native-svg
 ```
 
 ### Compatibility
 
-Version 5 requires React Native Gesture Handler 3 (`>=3.0.0`) and Reanimated 4 (`>=4.1.0`, with `react-native-worklets >=0.5.0`). For Gesture Handler 2, stay on `react-native-stonk-charts@4`.
+Versions 5 and 6 require React Native Gesture Handler 3 (`>=3.0.0`) and Reanimated 4 (`>=4.1.0`, with `react-native-worklets >=0.5.0`). For Gesture Handler 2, stay on `react-native-stonk-charts@4`.
 
-`react-native-haptic-feedback` (`>=2.3.3`) is a peer dependency: the library uses your app's copy instead of bundling its own.
+The library plays no haptics itself. Pass `onHaptic` to a line cursor to play your own (see [Haptic feedback](#haptic-feedback)).
 
 **Important:** Make sure you have the Reanimated Babel plugin configured in your `babel.config.js`:
 
@@ -336,7 +337,13 @@ Note that the tooltip will disappear when there is interaction with a cursor on 
 
 By making use of the chart event handlers, you are able to integrate haptic feedback into your charts.
 
-We can utilise the `onActivated` and `onEnded` events to create haptic feedback
+A line cursor's `onHaptic` is called each time the cursor moves onto a new data point, at most every 50 ms, so a scrub ticks under the finger without flooding the haptic engine:
+
+```jsx
+<LineChart.CursorCrosshair onHaptic={() => haptics.selectionAsync()} />
+```
+
+We can also utilise the `onActivated` and `onEnded` events to create haptic feedback
 on our line chart. This will cause a vibration on touch down/up.
 
 ```jsx
@@ -861,16 +868,17 @@ To customize the formatting of the date/time text, you can supply a `format` fun
 | `width`    | `number`    | Width of device screen  | The width of the chart                                                                                                     |
 | `height`   | `number`    | Height of device screen | The height of the chart                                                                                                    |
 | `yGutter`  | `number`    | `16`                    | The gutter of the chart on the Y axis (the chart data will not exceed it's gutter)                                         |
-| `shape`    | `function`  | `shape.curveBumpX`      | The shape type/curve of the graph. [Accepts a curve function from d3-shape](https://www.npmjs.com/package/d3-shape#curves) |
+| `shape`    | `function`  | `shape.curveBumpX`      | The shape type/curve of the graph. [Accepts a curve function from d3-shape](https://www.npmjs.com/package/d3-shape#curves). `curveBumpX` and `curveLinear` are built and morphed on the UI thread; other curves morph each path with `d3-interpolate-path`, which costs more per data change and per frame. |
 | `...props` | `ViewProps` |                         | This component also inherits React Native's `View` props.                                                                  |
 
 ### LineChart.Path
 
-| Prop        | Type        | Default   | Description                      |
-| ----------- | ----------- | --------- | -------------------------------- |
-| `color`     | `string`    | `"black"` | Color of the line path           |
-| `width`     | `number`    | `3`       | Width of the line path           |
-| `pathProps` | `PathProps` | `{}`      | React Native SVG's `Path` props. |
+| Prop        | Type        | Default   | Description                                                   |
+| ----------- | ----------- | --------- | ------------------------------------------------------------- |
+| `color`     | `string`    | `"black"` | Color of the line path                                        |
+| `width`     | `number`    | `3`       | Width of the line path                                        |
+| `glow`      | `string`    |           | Color of a soft glow drawn under the line, on iOS and Android |
+| `pathProps` | `PathProps` | `{}`      | React Native SVG's `Path` props.                              |
 
 ### LineChart.CursorCrosshair
 
@@ -951,22 +959,24 @@ To customize the formatting of the date/time text, you can supply a `format` fun
 
 ### LineChart.PriceText
 
-| Prop        | Type                               | Default       | Description                                |
-| ----------- | ---------------------------------- | ------------- | ------------------------------------------ |
-| `format`    | `({ value, formatted }) => string` |               | Custom format function of the price.       |
-| `precision` | `number`                           | `2`           | Default precision of the price.            |
-| `variant`   | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the price value. |
-| `...props`  | `TextProps`                        |               | Inherits React Native's `Text` props       |
+| Prop               | Type                               | Default       | Description                                       |
+| ------------------ | ---------------------------------- | ------------- | ------------------------------------------------- |
+| `format`           | `({ value, formatted }) => string` |               | Custom format function of the price.              |
+| `precision`        | `number`                           | `2`           | Default precision of the price.                   |
+| `variant`          | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the price value.        |
+| `...props`         | `TextProps`                        |               | Inherits React Native's `Text` props              |
+| `allowFontScaling` | `boolean`                          | `true`        | Whether the text scales with the system font size |
 
 ### LineChart.DatetimeText
 
-| Prop      | Type                               | Default       | Description                                                                                                                                                               |
-| --------- | ---------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `format`  | `({ value, formatted }) => string` |               | Custom format function of the timestamp.                                                                                                                                  |
-| `locale`  | `string`                           | `"en-US"`     | Locale of the timestamp.                                                                                                                                                  |
-| `options` | `{}`                               |               | Options to pass to `toLocaleString()`. [Available options are here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString) |
-| `style`   | `{}`                               |               | Style of the price text                                                                                                                                                   |
-| `variant` | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the timestamp value.                                                                                                                            |
+| Prop               | Type                               | Default       | Description                                                                                                                                                               |
+| ------------------ | ---------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`           | `({ value, formatted }) => string` |               | Custom format function of the timestamp.                                                                                                                                  |
+| `locale`           | `string`                           | `"en-US"`     | Locale of the timestamp.                                                                                                                                                  |
+| `options`          | `{}`                               |               | Options to pass to `toLocaleString()`. [Available options are here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString) |
+| `style`            | `{}`                               |               | Style of the price text                                                                                                                                                   |
+| `variant`          | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the timestamp value.                                                                                                                            |
+| `allowFontScaling` | `boolean`                          | `true`        | Whether the text scales with the system font size                                                                                                                         |
 
 ### LineChart.Axis
 
@@ -998,15 +1008,13 @@ To customize the formatting of the date/time text, you can supply a `format` fun
 
 ### CandlestickChart.Candles
 
-| Prop            | Type                                                                                                                            | Default   | Description                                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------ |
-| `positiveColor` | `string`                                                                                                                        | `#10b981` | Color of the positive candles                                      |
-| `negativeColor` | `string`                                                                                                                        | `#ef4444` | Color of the negative candles                                      |
-| `rectProps`     | `RectProps`                                                                                                                     |           | Props of the SVG Rectangle. Takes React Native's SVG `Rect` props. |
-| `lineProps`     | `LineProps`                                                                                                                     |           | Props of the SVG Line. Takes React Native's SVG `Line` props.      |
-| `renderRect`    | `({ x: number, y: number, width: number, height: number, fill: string, candle: TCandle }) => React.ReactNode`                   |           | Renders a custom rect component                                    |
-| `renderLine`    | `({ x1: number, x2: number, y1: number, y2: number, stroke: string, strokeWidth: number, candle: TCandle }) => React.ReactNode` |           | Renders a custom line component                                    |
-| `...props`      | `SvgProps`                                                                                                                      |           | This component also inherits React Native SVG's `Svg` props.       |
+| Prop            | Type       | Default   | Description                                                  |
+| --------------- | ---------- | --------- | ------------------------------------------------------------ |
+| `positiveColor` | `string`   | `#10b981` | Color of the positive candles                                |
+| `negativeColor` | `string`   | `#ef4444` | Color of the negative candles                                |
+| `margin`        | `number`   | `2`       | Space between a candle's body and the edge of its slot       |
+| `useAnimations` | `boolean`  | `true`    | Morph the candles when the data changes                      |
+| `...props`      | `SvgProps` |           | This component also inherits React Native SVG's `Svg` props. |
 
 ### CandlestickChart.Crosshair
 
@@ -1027,22 +1035,24 @@ To customize the formatting of the date/time text, you can supply a `format` fun
 
 ### CandlestickChart.PriceText
 
-| Prop        | Type                               | Default       | Description                                |
-| ----------- | ---------------------------------- | ------------- | ------------------------------------------ |
-| `format`    | `({ value, formatted }) => string` |               | Custom format function of the price.       |
-| `precision` | `number`                           | `2`           | Default precision of the price.            |
-| `variant`   | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the price value. |
-| `...props`  | `TextProps`                        |               | Inherits React Native's `Text` props       |
+| Prop               | Type                               | Default       | Description                                       |
+| ------------------ | ---------------------------------- | ------------- | ------------------------------------------------- |
+| `format`           | `({ value, formatted }) => string` |               | Custom format function of the price.              |
+| `precision`        | `number`                           | `2`           | Default precision of the price.                   |
+| `variant`          | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the price value.        |
+| `...props`         | `TextProps`                        |               | Inherits React Native's `Text` props              |
+| `allowFontScaling` | `boolean`                          | `true`        | Whether the text scales with the system font size |
 
 ### CandlestickChart.DatetimeText
 
-| Prop      | Type                               | Default       | Description                                                                                                                                                               |
-| --------- | ---------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `format`  | `({ value, formatted }) => string` |               | Custom format function of the timestamp.                                                                                                                                  |
-| `locale`  | `string`                           | `"en-US"`     | Locale of the timestamp.                                                                                                                                                  |
-| `options` | `{}`                               |               | Options to pass to `toLocaleString()`. [Available options are here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString) |
-| `style`   | `{}`                               |               | Style of the price text                                                                                                                                                   |
-| `variant` | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the timestamp value.                                                                                                                            |
+| Prop               | Type                               | Default       | Description                                                                                                                                                               |
+| ------------------ | ---------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `format`           | `({ value, formatted }) => string` |               | Custom format function of the timestamp.                                                                                                                                  |
+| `locale`           | `string`                           | `"en-US"`     | Locale of the timestamp.                                                                                                                                                  |
+| `options`          | `{}`                               |               | Options to pass to `toLocaleString()`. [Available options are here](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/toLocaleString) |
+| `style`            | `{}`                               |               | Style of the price text                                                                                                                                                   |
+| `variant`          | `"formatted"` or `"value"`         | `"formatted"` | Default representation of the timestamp value.                                                                                                                            |
+| `allowFontScaling` | `boolean`                          | `true`        | Whether the text scales with the system font size                                                                                                                         |
 
 ## Hooks
 
@@ -1069,6 +1079,14 @@ const { currentX, currentY, currentIndex, data, domain, isActive } =
 | `data`         | `Array<{ timestamp: number, value: number }>` |         | Data of the chart               |
 | `domain`       | `[number, number]`                            |         | Y domain of the chart           |
 | `isActive`     | `SharedValue<boolean>`                        |         | Is the chart active by gesture? |
+
+### LineChart.useCursor
+
+`LineChart.useCursor` returns only the cursor's shared values. Its result never changes, so unlike `LineChart.useChart` a component that uses it does not re-render when the data changes. Use it for anything that follows the cursor.
+
+```jsx
+const { currentX, currentY, currentIndex, isActive } = LineChart.useCursor();
+```
 
 ### LineChart.useDatetime
 

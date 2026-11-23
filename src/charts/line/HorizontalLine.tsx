@@ -5,10 +5,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LineProps, Line as SVGLine } from 'react-native-svg';
 
-import { LineChartDimensionsContext } from './Chart';
+import { LineChartDimensionsContext, LineChartGeometryContext } from './Chart';
+import { LineChartPathContext } from './LineChartPathContext';
 import React from 'react';
-import { getXPositionForCurve } from './utils/getXPositionForCurve';
-import { getYForX } from 'react-native-redash';
+import { pointAt } from './utils/geometry';
 import { useLineChart } from './useLineChart';
 
 const AnimatedLine = Animated.createAnimatedComponent(SVGLine);
@@ -54,17 +54,23 @@ export function LineChartHorizontalLine({
   at = { index: 0 },
   offsetY = 0,
 }: HorizontalLineProps) {
-  const { width, parsedPath, height, gutter } = React.useContext(
+  const { width, height, gutter } = React.useContext(
     LineChartDimensionsContext
   );
+  const { geometry, end, points, curve } = React.useContext(
+    LineChartGeometryContext
+  );
+  const { isTransitionEnabled } = React.useContext(LineChartPathContext);
+  const source = isTransitionEnabled ? geometry : end;
+  const shape = curve ?? 'linear';
   const { yDomain } = useLineChart();
 
   const y = useDerivedValue(() => {
     if (typeof at === 'number' || at.index != null) {
+      // On the drawn shape, so the line follows the morph, or on the target
+      // when the path doesn't morph.
       const index = typeof at === 'number' ? at : at.index;
-      const yForX =
-        getYForX(parsedPath!, getXPositionForCurve(parsedPath, index)) || 0;
-      return withTiming(yForX + offsetY);
+      return pointAt(source.value, points.value, index, shape).y + offsetY;
     }
     /**
      * <gutter>

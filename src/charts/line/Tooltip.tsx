@@ -11,12 +11,10 @@ import { StyleSheet } from 'react-native';
 import { LineChartPriceText, LineChartPriceTextProps } from './PriceText';
 
 import { CursorContext } from './Cursor';
-import { LineChartDimensionsContext } from './Chart';
+import { LineChartGeometryContext } from './Chart';
 import type { LayoutChangeEvent, ViewProps } from 'react-native';
-import { getXPositionForCurve } from './utils/getXPositionForCurve';
-import { getYForX } from 'react-native-redash';
-import { useLineChart } from './useLineChart';
-import { useMemo } from 'react';
+import { pointAt } from './utils/geometry';
+import { useLineChartCursor } from './useLineChart';
 import type { TFormatterFn } from '../../types';
 
 export type LineChartTooltipPosition = 'top' | 'bottom' | 'left' | 'right';
@@ -56,11 +54,12 @@ export function LineChartTooltip({
   at,
   ...props
 }: LineChartTooltipProps) {
-  const { width, height, parsedPath } = React.useContext(
-    LineChartDimensionsContext
+  const { width, height, geometry, points, curve } = React.useContext(
+    LineChartGeometryContext
   );
+  const shape = curve ?? 'linear';
   const { type } = React.useContext(CursorContext);
-  const { currentX, currentY, isActive } = useLineChart();
+  const { currentX, currentY, isActive } = useLineChartCursor();
 
   const elementWidth = useSharedValue(0);
   const elementHeight = useSharedValue(0);
@@ -73,20 +72,10 @@ export function LineChartTooltip({
     [elementHeight, elementWidth]
   );
 
-  // When the user set a `at` index, get the index's y & x positions
-  const atXPosition = useMemo(
-    () =>
-      at !== null && at !== undefined
-        ? getXPositionForCurve(parsedPath, at)
-        : undefined,
-    [at, parsedPath]
+  // When the user set an `at` index, its position on the drawn shape.
+  const atPosition = useDerivedValue(() =>
+    at == null ? null : pointAt(geometry.value, points.value, at, shape)
   );
-
-  const atYPosition = useDerivedValue(() => {
-    return atXPosition == null
-      ? undefined
-      : getYForX(parsedPath, atXPosition) ?? 0;
-  });
 
   const getInitialTranslateXOffset = React.useCallback(
     (elementWidth: number) => {
@@ -100,11 +89,11 @@ export function LineChartTooltip({
 
   const animatedCursorStyle = useAnimatedStyle(() => {
     // the tooltip is considered static when the user specified an `at` prop
-    const isStatic = atYPosition.value != null;
+    const isStatic = atPosition.value != null;
 
     // Calculate X position:
     let translateXOffset = getInitialTranslateXOffset(elementWidth.value);
-    const x = atXPosition ?? currentX.value;
+    const x = atPosition.value?.x ?? currentX.value;
     const elementFullWidth = elementWidth.value + xGutter + cursorGutter;
 
     if (position === 'right') {
@@ -139,7 +128,7 @@ export function LineChartTooltip({
 
     // Calculate Y position:
     let translateYOffset = 0;
-    const y = atYPosition.value ?? currentY.value;
+    const y = atPosition.value?.y ?? currentY.value;
     if (position === 'top') {
       translateYOffset = elementHeight.value / 2 + cursorGutter;
       if (y - translateYOffset < yGutter) {

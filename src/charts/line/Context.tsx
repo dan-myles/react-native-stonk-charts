@@ -8,6 +8,18 @@ import { LineChartDataProvider } from './Data';
 import type { TLineChartContext, YRangeProp } from './types';
 import { getDomain, lineChartDataPropToArray } from './utils';
 
+/**
+ * The gesture's shared values, created once per provider. Its value never
+ * changes, so components that read only these never re-render on new data.
+ */
+export const LineChartCursorContext = createContext<
+  Pick<TLineChartContext, 'currentX' | 'currentIndex' | 'isActive'>
+>({
+  currentX: { value: -1 } as TLineChartContext['currentX'],
+  currentIndex: { value: -1 } as TLineChartContext['currentIndex'],
+  isActive: { value: false } as TLineChartContext['isActive'],
+});
+
 export const LineChartContext = createContext<TLineChartContext>({
   currentX: { value: -1 } as TLineChartContext['currentX'],
   currentIndex: { value: -1 } as TLineChartContext['currentIndex'],
@@ -83,6 +95,11 @@ export function LineChartProvider({
     xDomain,
   ]);
 
+  const cursorValue = useMemo(
+    () => ({ currentX, currentIndex, isActive }),
+    [currentX, currentIndex, isActive]
+  );
+
   useAnimatedReaction(
     () => currentIndex.value,
     (x, prevX) => {
@@ -94,9 +111,11 @@ export function LineChartProvider({
 
   return (
     <LineChartDataProvider data={data}>
-      <LineChartContext.Provider value={contextValue}>
-        {children}
-      </LineChartContext.Provider>
+      <LineChartCursorContext.Provider value={cursorValue}>
+        <LineChartContext.Provider value={contextValue}>
+          {children}
+        </LineChartContext.Provider>
+      </LineChartCursorContext.Provider>
     </LineChartDataProvider>
   );
 }

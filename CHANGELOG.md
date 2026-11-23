@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [6.0.0] - 2026-11-23
+
+Line charts (with the default `curveBumpX` or `curveLinear`) and candlestick charts now build and animate their paths on the UI thread. A data change still prepares the new data once on the JS thread, but the morph, the scrub and the lift do no per-frame JS work, and the line paths and cursor no longer re-render when the data changes.
+
+### Breaking
+
+- The line cursor no longer plays a haptic, and `react-native-haptic-feedback` is no longer a peer dependency. Pass `onHaptic` to `LineChart.Cursor`, `LineChart.CursorCrosshair` or `LineChart.CursorLine` to play your own; it is called each time the cursor moves onto a new data point, at most every 50 ms.
+- `CandlestickChart.Candle`, `CandlestickChartCandle` and `CandlestickChartCandleProps` are removed. `CandlestickChart.Candles` draws every candle as one path per color and no longer takes `rectProps`, `lineProps`, `renderRect`, `renderLine` or `candleProps`. To style candles, use `positiveColor`, `negativeColor` and `margin`.
+- `LineChart.Path`'s `glow` is now drawn as soft halo strokes under the line instead of an iOS layer shadow. It looks close to the old glow on iOS and now also draws on Android.
+- Without `glow`, iOS no longer draws a dark shadow under the active line. 5.0.0 drew one by accident, because its glow wrapper always had a shadow and iOS shadows default to black. Pass `glow` for a glow.
+- `LineChart.Path` draws with `strokeLinejoin="round"` by default. Pass `strokeLinejoin` to override it.
+
+### Added
+
+- `LineChart.useCursor` (also exported as `useLineChartCursor`) returns the cursor's shared values and the drawn Y under it. Its result never changes, so components that only follow the cursor no longer re-render when the data changes.
+- `allowFontScaling` on `LineChart.PriceText`, `LineChart.DatetimeText`, `CandlestickChart.PriceText` and `CandlestickChart.DatetimeText`.
+
+### Changed
+
+- With `curveBumpX` (the default) or `curveLinear`, every path of a chart shares one geometry and one morph, built on the UI thread. Data with more points than the chart has pixels keeps each pixel column's first, last, lowest and highest point, so peaks stay exact while the path gets much shorter. Other curves still morph each path with `d3-interpolate-path`.
+- A range switch morphs from the shape on screen, also when it interrupts a running morph. When the point count changes, the side with fewer points is resampled to the larger count, so neither shape loses detail.
+- The chart draws its line on the first frame; the paths no longer mount empty.
+- The scrub reveal and the lift animate transforms instead of the SVG's width.
+- The line paths inside `LineChart.Path` and a childless `LineChart.CursorCrosshair` are memoized and no longer re-render when the data changes.
+- `LineChart.Dot`, `LineChart.Tooltip`'s `at`, `LineChart.HorizontalLine`'s `at` and `LineChart.Highlight` follow the drawn line during a morph instead of jumping to the new data. With `isTransitionEnabled={false}` on the path, `Dot`, `HorizontalLine` and `Highlight` sit on the new data at once, as the line does. With other curves they sit on the curve as d3 draws it.
+- The cursor's `snapToPoint` and `at` find the nearest point on the UI thread. `at` moves the cursor only when `at` or the X scale changes, not on every live tick.
+- A candlestick range switch slides the old candles into the new ones, resampled by position when the count changes, instead of mounting and unmounting a component per candle.
+- Removed the `d3-array` dependency.
+
 ## [5.0.0] - 2026-10-24
 
 ### Breaking

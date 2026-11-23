@@ -15,7 +15,7 @@ import { LineChartPriceText } from './PriceText';
 import { LineChartDatetimeText } from './DatetimeText';
 import { useLineChartDatetime } from './useDatetime';
 import { useLineChartPrice } from './usePrice';
-import { useLineChart } from './useLineChart';
+import { useLineChart, useLineChartCursor } from './useLineChart';
 import { LineChartHoverTrap } from '../line/HoverTrap';
 
 export * from './Axis';
@@ -56,5 +56,6 @@ export const LineChart = Object.assign(_LineChart, {
   useDatetime: useLineChartDatetime,
   usePrice: useLineChartPrice,
   useChart: useLineChart,
+  useCursor: useLineChartCursor,
   HoverTrap: LineChartHoverTrap,
 });

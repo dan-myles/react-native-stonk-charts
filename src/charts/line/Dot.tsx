@@ -11,11 +11,10 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Circle, CircleProps } from 'react-native-svg';
 
-import { LineChartDimensionsContext } from './Chart';
+import { LineChartGeometryContext } from './Chart';
 import { LineChartPathContext } from './LineChartPathContext';
-import { getXPositionForCurve } from './utils/getXPositionForCurve';
-import { getYForX } from 'react-native-redash';
-import { useLineChart } from './useLineChart';
+import { pointAt } from './utils/geometry';
+import { useLineChartCursor } from './useLineChart';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -60,12 +59,18 @@ export function LineChartDot({
   size = 4,
   outerSize = size * 4,
 }: LineChartDotProps) {
-  const { isActive } = useLineChart();
-  const { parsedPath } = React.useContext(LineChartDimensionsContext);
+  const { isActive } = useLineChartCursor();
+  const { geometry, end, points, curve } = React.useContext(
+    LineChartGeometryContext
+  );
+  const shape = curve ?? 'linear';
 
   ////////////////////////////////////////////////////////////
 
-  const { isInactive: _isInactive } = React.useContext(LineChartPathContext);
+  const { isTransitionEnabled, isInactive: _isInactive } =
+    React.useContext(LineChartPathContext);
+  // On the drawn shape, or on the target when the path doesn't morph.
+  const source = isTransitionEnabled ? geometry : end;
   const isInactive = showInactiveColor && _isInactive;
   const color = isInactive ? inactiveColor || defaultColor : defaultColor;
   const opacity = isInactive && !inactiveColor ? 0.5 : 1;
@@ -73,13 +78,11 @@ export function LineChartDot({
 
   ////////////////////////////////////////////////////////////
 
-  const x = useDerivedValue(() => {
-    return withTiming(getXPositionForCurve(parsedPath, at));
-  });
-
-  const y = useDerivedValue(
-    () => withTiming(getYForX(parsedPath!, x.value) || 0)
+  const position = useDerivedValue(() =>
+    pointAt(source.value, points.value, at, shape)
   );
+  const x = useDerivedValue(() => position.value.x);
+  const y = useDerivedValue(() => position.value.y);
 
   ////////////////////////////////////////////////////////////
 

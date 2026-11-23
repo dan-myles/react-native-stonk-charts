@@ -1,15 +1,55 @@
 import * as React from 'react';
-import {
+import Animated, {
+  AnimatedProps,
   useAnimatedProps,
   useAnimatedReaction,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { Path, PathProps } from 'react-native-svg';
 
+import { LineChartDimensionsContext, LineChartGeometryContext } from './Chart';
 import { interpolatePath } from './utils';
 import { usePrevious } from '../../utils';
 
-export default function useAnimatedPath({
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+type ChartPathProps = AnimatedProps<PathProps> & {
+  kind: 'line' | 'area';
+  enabled: boolean;
+};
+
+/**
+ * One of the chart's paths. With `curveBumpX` or `curveLinear` it reads the
+ * chart's shared geometry: the morphing shape, or the target when transitions
+ * are off. It never reads the data, so it doesn't re-render when the data
+ * changes, and the string is built once per frame for every path. Other
+ * curves morph per path with `interpolatePath`, which is slower.
+ */
+export function AnimatedChartPath(props: ChartPathProps) {
+  const { curve } = React.useContext(LineChartGeometryContext);
+  return curve
+    ? React.createElement(SharedPath, props)
+    : React.createElement(MorphingPath, props);
+}
+
+function SharedPath({ kind, enabled, ...props }: ChartPathProps) {
+  const { geometry, target } = React.useContext(LineChartGeometryContext);
+  const source = enabled ? geometry : target;
+  const animatedProps = useAnimatedProps(() => ({ d: source.value[kind] }));
+  return React.createElement(AnimatedPath, { animatedProps, ...props });
+}
+
+function MorphingPath({ kind, enabled, ...props }: ChartPathProps) {
+  const { path, area } = React.useContext(LineChartDimensionsContext);
+  const { animatedProps } = useAnimatedPath({
+    enabled,
+    path: kind === 'area' ? area : path,
+  });
+  return React.createElement(AnimatedPath, { animatedProps, ...props });
+}
+
+function useAnimatedPath({
   enabled = true,
   path,
 }: {
@@ -36,7 +76,10 @@ export default function useAnimatedPath({
   // interpolator once per path change on the JS thread; the returned
   // closure is a worklet, so the frame loop below only evaluates it.
   const pathInterpolator = React.useMemo(
-    () => (previousPath && enabled ? interpolatePath(previousPath, path, null) : null),
+    () =>
+      previousPath && enabled
+        ? interpolatePath(previousPath, path, null)
+        : null,
     [enabled, path, previousPath]
   );
 
