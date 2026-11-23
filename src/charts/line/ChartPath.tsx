@@ -24,6 +24,13 @@ const BACKGROUND_COMPONENTS = [
 ];
 const FOREGROUND_COMPONENTS = ["LineChartHighlight", "LineChartDot"];
 
+/**
+ * The glow: wider, fainter strokes of the same animated path under the line.
+ * A layer shadow cost an offscreen pass on iOS every frame its content moved,
+ * and Android's elevation drew nothing without a background.
+ */
+const HALOS = [7, 5.5, 4, 2.5, 1].map((spread) => ({ spread, opacity: 0.06 }));
+
 /** The reveal at rest: wider than any chart, so a resting clip never cuts the line however far live ticks grow it. */
 const REST = 1e6;
 
@@ -170,12 +177,7 @@ export function LineChartPathWrapper({
           style={[styles.clip, { width: capacity, height }, clipStyle]}
         >
           <Animated.View
-            style={[
-              { width: capacity, height },
-              styles.glowWrapper,
-              glow && { shadowColor: glow },
-              layerStyle,
-            ]}
+            style={[{ width: capacity, height }, layerStyle]}
           >
             <Svg width={width} height={height}>
               <Defs>
@@ -185,6 +187,17 @@ export function LineChartPathWrapper({
                 </LinearGradient>
               </Defs>
 
+              {glow
+                ? HALOS.map((halo) => (
+                    <LineChartPath
+                      key={halo.spread}
+                      color={glow}
+                      width={strokeWidth + halo.spread}
+                      strokeOpacity={halo.opacity}
+                      {...pathProps}
+                    />
+                  ))
+                : null}
               <LineChartPath
                 stroke="url(#lineGradient)" // use the gradient as the stroke
                 width={strokeWidth}
@@ -211,11 +224,5 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     overflow: "hidden",
-  },
-  glowWrapper: {
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 5,
-    elevation: 10,
   },
 });
