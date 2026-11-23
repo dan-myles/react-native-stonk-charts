@@ -9,10 +9,10 @@ import Svg, { type LineProps, Line as SVGLine } from 'react-native-svg';
 
 import type { TFormatterFn } from '../../types';
 import { AnimatedText } from '../../components/AnimatedText';
-import { LineChartDimensionsContext } from './Chart';
+import { LineChartGeometryContext } from './Chart';
 import { LineChartCursor, type LineChartCursorProps } from './Cursor';
 import { useLineChartDatetime } from './useDatetime';
-import { useLineChart } from './useLineChart';
+import { useLineChartCursor } from './useLineChart';
 import { useLineChartPrice } from './usePrice';
 
 type LineChartCursorLineProps = {
@@ -53,8 +53,8 @@ export function LineChartCursorLine({
   ...cursorProps
 }: LineChartCursorLineProps) {
   const isHorizontal = cursorProps?.orientation === 'horizontal';
-  const { height, width } = React.useContext(LineChartDimensionsContext);
-  const { currentX, currentY, isActive } = useLineChart();
+  const { height, width } = React.useContext(LineChartGeometryContext);
+  const { currentX, currentY, isActive } = useLineChartCursor();
   
   const price = useLineChartPrice({
     format: isHorizontal ? (format as TFormatterFn<string>) : undefined,

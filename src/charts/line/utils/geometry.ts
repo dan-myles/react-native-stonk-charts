@@ -25,6 +25,52 @@ export function getCurve(shape: unknown): Curve | null {
   return null;
 }
 
+/** The scale `getPath` uses for X: timestamps across `xDomain`, else indices across the data. */
+export type XScale = { start: number; end: number; width: number };
+
+export function getXScale(
+  data: TLineChartData,
+  width: number,
+  xDomain?: [number, number]
+): XScale {
+  if (xDomain) {
+    return { start: xDomain[0], end: xDomain[1], width };
+  }
+  return { start: 0, end: Math.max(data.length - 1, 0), width };
+}
+
+/** Each data point's X in pixels, by index, for snapping and indexed decorations. */
+export function getPointXs(
+  data: TLineChartData,
+  scale: XScale,
+  xDomain?: [number, number]
+): number[] {
+  const span = scale.end - scale.start;
+  return data.map(({ timestamp }, i) => {
+    const t = xDomain ? timestamp : i;
+    return span === 0 ? 0 : ((t - scale.start) / span) * scale.width;
+  });
+}
+
+/** Index of the point nearest `x`; `xs` ascending and non-empty. */
+export function nearestIndex(xs: number[], x: number): number {
+  'worklet';
+  let low = 0;
+  let high = xs.length - 1;
+  while (low < high) {
+    const mid = (low + high) >> 1;
+    if (xs[mid]! < x) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+  if (low > 0 && x - xs[low - 1]! <= xs[low]! - x) {
+    return low - 1;
+  }
+  return low;
+}
+
 /**
  * Each data point's pixel position, with the same scales as `getPath`, so a
  * partial day keeps its true start and end X.

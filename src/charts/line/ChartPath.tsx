@@ -10,10 +10,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { Defs, LinearGradient, Stop, Svg } from "react-native-svg";
 
-import { LineChartDimensionsContext } from "./Chart";
+import { LineChartGeometryContext } from "./Chart";
 import { LineChartPathContext } from "./LineChartPathContext";
 import { LineChartPath, LineChartPathProps } from "./Path";
-import { useLineChart } from "./useLineChart";
+import { useLineChartCursor } from "./useLineChart";
 
 const BACKGROUND_COMPONENTS = [
   "LineChartHighlight",
@@ -33,6 +33,9 @@ const HALOS = [7, 5.5, 4, 2.5, 1].map((spread) => ({ spread, opacity: 0.06 }));
 
 /** The reveal at rest: wider than any chart, so a resting clip never cuts the line however far live ticks grow it. */
 const REST = 1e6;
+
+/** A stable default, so the reveal reaction's closure doesn't change on every render. */
+const NO_TIMING_PROPS = {};
 
 type LineChartPathWrapperProps = {
   animationDuration?: number;
@@ -55,7 +58,7 @@ LineChartPathWrapper.displayName = "LineChartPathWrapper";
 
 export function LineChartPathWrapper({
   animationDuration = 300,
-  animationProps = {},
+  animationProps = NO_TIMING_PROPS,
   children,
   color = "black",
   glow,
@@ -69,8 +72,8 @@ export function LineChartPathWrapper({
   mountAnimationDuration = animationDuration,
   mountAnimationProps = animationProps,
 }: LineChartPathWrapperProps) {
-  const { height, width } = React.useContext(LineChartDimensionsContext);
-  const { currentX, isActive } = useLineChart();
+  const { height, width, scale } = React.useContext(LineChartGeometryContext);
+  const { currentX, isActive } = useLineChartCursor();
 
   ////////////////////////////////////////////////
 
@@ -78,13 +81,15 @@ export function LineChartPathWrapper({
   // a clipping view moves to end at `reveal` while the layer inside moves back
   // to x = 0. Scrubbing and lift then animate transforms only; the SVGs never
   // resize or redraw.
+  // The mount and lift animations end just past the series' own end, as in
+  // 5.0.0, so a partial day reveals at the same speed; `REST` takes over after.
   const capacity = width + widthOffset;
   const reveal = useSharedValue(animateOnMount === "foreground" ? 0 : REST);
 
   React.useEffect(() => {
     if (animateOnMount === "foreground") {
       reveal.value = withTiming(
-        capacity,
+        Math.min(scale.value.width + widthOffset, capacity),
         Object.assign({ duration: mountAnimationDuration }, mountAnimationProps),
         (finished) => {
           if (finished) {
@@ -105,7 +110,7 @@ export function LineChartPathWrapper({
       }
       if (previous !== null && previous >= 0) {
         reveal.value = withTiming(
-          capacity,
+          Math.min(scale.value.width + widthOffset, capacity),
           Object.assign({ duration: animationDuration }, animationProps),
           (finished) => {
             if (finished) {
@@ -115,7 +120,6 @@ export function LineChartPathWrapper({
         );
       }
     },
-    [capacity, animationDuration],
   );
 
   const clipStyle = useAnimatedStyle(() => ({
@@ -126,6 +130,17 @@ export function LineChartPathWrapper({
   }));
 
   const viewSize = React.useMemo(() => ({ width, height }), [width, height]);
+
+  // Stable values, so the paths below don't re-render with the wrapper.
+  const isTransitionEnabled = pathProps.isTransitionEnabled ?? true;
+  const inactiveContext = React.useMemo(
+    () => ({ color, isInactive: showInactivePath, isTransitionEnabled }),
+    [color, showInactivePath, isTransitionEnabled],
+  );
+  const activeContext = React.useMemo(
+    () => ({ color, isInactive: false, isTransitionEnabled }),
+    [color, isTransitionEnabled],
+  );
 
   ////////////////////////////////////////////////
 
@@ -147,13 +162,7 @@ export function LineChartPathWrapper({
 
   return (
     <>
-      <LineChartPathContext.Provider
-        value={{
-          color,
-          isInactive: showInactivePath,
-          isTransitionEnabled: pathProps.isTransitionEnabled ?? true,
-        }}
-      >
+      <LineChartPathContext.Provider value={inactiveContext}>
         <View style={viewSize}>
           <Svg width={width} height={height}>
             <LineChartPath
@@ -166,20 +175,14 @@ export function LineChartPathWrapper({
           <Svg style={StyleSheet.absoluteFill}>{backgroundChildren}</Svg>
         </View>
       </LineChartPathContext.Provider>
-      <LineChartPathContext.Provider
-        value={{
-          color,
-          isInactive: false,
-          isTransitionEnabled: pathProps.isTransitionEnabled ?? true,
-        }}
-      >
+      <LineChartPathContext.Provider value={activeContext}>
         <Animated.View
           style={[styles.clip, { width: capacity, height }, clipStyle]}
         >
           <Animated.View
             style={[{ width: capacity, height }, layerStyle]}
           >
-            <Svg width={width} height={height}>
+            <Svg width={capacity} height={height}>
               <Defs>
                 <LinearGradient id="lineGradient" x1="0" y1="0" x2="100%" y2="0">
                   <Stop offset="0%" stopColor={gradientColors[0]} />
@@ -191,10 +194,10 @@ export function LineChartPathWrapper({
                 ? HALOS.map((halo) => (
                     <LineChartPath
                       key={halo.spread}
+                      {...pathProps}
                       color={glow}
                       width={strokeWidth + halo.spread}
                       strokeOpacity={halo.opacity}
-                      {...pathProps}
                     />
                   ))
                 : null}
@@ -206,7 +209,7 @@ export function LineChartPathWrapper({
             </Svg>
 
             <Svg
-              width={width}
+              width={capacity}
               height={height}
               style={StyleSheet.absoluteFill}
             >

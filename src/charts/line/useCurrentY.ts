@@ -1,7 +1,7 @@
 import { useContext } from 'react';
-import { LineChartDimensionsContext } from './Chart';
+import { LineChartGeometryContext } from './Chart';
 
 export function useCurrentY() {
-  const { currentY } = useContext(LineChartDimensionsContext);
+  const { currentY } = useContext(LineChartGeometryContext);
   return currentY;
 }

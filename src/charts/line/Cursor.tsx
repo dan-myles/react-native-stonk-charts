@@ -1,6 +1,9 @@
 import React from 'react';
 
-import Animated, { useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  useAnimatedReaction,
+  useSharedValue,
+} from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import {
   GestureDetector,
@@ -8,12 +11,10 @@ import {
   useLongPressGesture,
 } from 'react-native-gesture-handler';
 
-import { LineChartDimensionsContext } from './Chart';
+import { LineChartGeometryContext } from './Chart';
 import { StyleSheet } from 'react-native';
-import { bisectCenter } from 'd3-array';
-import { scaleLinear } from 'd3-scale';
-import { useLineChart } from './useLineChart';
-import { useEffect } from 'react';
+import { useLineChartCursor } from './useLineChart';
+import { nearestIndex } from './utils/geometry';
 
 export type LineChartCursorProps = {
   children: React.ReactNode;
@@ -44,90 +45,53 @@ export function LineChartCursor({
   onEnded,
   onHaptic,
 }: LineChartCursorProps) {
-  const { pathWidth: width, parsedPath } = React.useContext(
-    LineChartDimensionsContext
-  );
-  const { currentX, currentIndex, isActive, data, xDomain } = useLineChart();
+  // Only shared values: the gesture is built once and never rebuilt when the
+  // data changes, and snapping runs on the UI thread.
+  const { points, scale } = React.useContext(LineChartGeometryContext);
+  const { currentX, currentIndex, isActive } = useLineChartCursor();
   const lastHapticAt = useSharedValue(0);
-  const xValues = React.useMemo(
-    () => (data ?? []).map(({ timestamp }, i) => (xDomain ? timestamp : i)),
-    [data, xDomain]
+
+  // `at` is a timestamp when the provider has an `xDomain`, else an index.
+  useAnimatedReaction(
+    () => points.value,
+    (xs) => {
+      if (at === undefined || xs.length === 0) {
+        return;
+      }
+      const { start, end, width } = scale.value;
+      const x = end === start ? 0 : ((at - start) / (end - start)) * width;
+      const index = nearestIndex(xs, x);
+      currentIndex.value = index;
+      currentX.value = xs[index]!;
+      isActive.value = true;
+    },
+    [at]
   );
 
-  // Same scale as in /src/charts/line/utils/getPath.ts
-  const scaleX = React.useMemo(() => {
-    const domainArray = xDomain ?? [0, xValues.length];
-    return scaleLinear().domain(domainArray).range([0, width]);
-  }, [width, xDomain, xValues.length]);
-
-  const linearScalePositionAndIndex = ({
-    xPosition,
-  }: {
-    xPosition: number;
-  }) => {
-    if (!parsedPath) {
+  const updatePosition = (x: number) => {
+    'worklet';
+    const xs = points.value;
+    if (xs.length === 0) {
       return;
     }
+    // on Web, we could drag the cursor to be negative, breaking it
+    // https://github.com/coinjar/react-native-wagmi-charts/issues/24
+    const xPosition = Math.max(0, Math.min(x, scale.value.width));
+    const index = nearestIndex(xs, xPosition);
 
-    // Calculate a scaled timestamp for the current touch position
-    const xRelative = scaleX.invert(xPosition);
-
-    const closestIndex = bisectCenter(xValues, xRelative);
-    const pathDataDelta = Math.abs(parsedPath.curves.length - xValues.length); // sometimes there is a difference between data length and number of path curves.
-    const closestPathCurve = Math.max(
-      Math.min(closestIndex, parsedPath.curves.length + 1) - pathDataDelta,
-      0
-    );
-
-    const newXPosition = (
-      closestIndex > 0
-        ? parsedPath.curves[closestPathCurve]!.to
-        : parsedPath.move
-    ).x;
-    // Update values
-    currentIndex.value = closestIndex;
-    currentX.value = newXPosition;
-  };
-
-  useEffect(() => {
-    if (at !== undefined) {
-      const xPosition = scaleX(at);
-      scheduleOnRN(linearScalePositionAndIndex, { xPosition });
-      isActive.value = true;
-    }
-  }, [at, scaleX]);
-
-  const updatePosition = (xPosition: number) => {
-    'worklet';
-    if (parsedPath) {
-      // on Web, we could drag the cursor to be negative, breaking it
-      // so we clamp the index at 0 to fix it
-      // https://github.com/coinjar/react-native-wagmi-charts/issues/24
-      const minIndex = 0;
-      const boundedIndex = Math.max(
-        minIndex,
-        Math.round(xPosition / width / (1 / (data ? data.length - 1 : 1)))
-      );
-
-      // Haptic only when the cursor crosses onto a new data point, at most
-      // every 50ms. Firing per touch-move event floods the JS thread and the
-      // haptic engine (~60+ calls/sec at 120Hz).
-      if (onHaptic && boundedIndex !== currentIndex.value) {
-        const now = Date.now();
-        if (now - lastHapticAt.value >= 50) {
-          lastHapticAt.value = now;
-          scheduleOnRN(onHaptic);
-        }
-      }
-
-      if (snapToPoint) {
-        // We have to run this on the JS thread unfortunately as the scaleLinear functions won't work on UI thread
-        scheduleOnRN(linearScalePositionAndIndex, { xPosition });
-      } else if (!snapToPoint) {
-        currentX.value = xPosition;
-        currentIndex.value = boundedIndex;
+    // Haptic only when the cursor crosses onto a new data point, at most
+    // every 50ms. Firing per touch-move event floods the JS thread and the
+    // haptic engine (~60+ calls/sec at 120Hz).
+    if (onHaptic && index !== currentIndex.value) {
+      const now = Date.now();
+      if (now - lastHapticAt.value >= 50) {
+        lastHapticAt.value = now;
+        scheduleOnRN(onHaptic);
       }
     }
+
+    currentIndex.value = index;
+    currentX.value = snapToPoint ? xs[index]! : xPosition;
   };
 
   const longPressGesture = useLongPressGesture({
@@ -136,10 +100,9 @@ export function LineChartCursor({
     shouldCancelWhenOutside,
     onActivate: (event: LongPressGestureEvent) => {
       'worklet';
-      if (parsedPath) {
-        const xPosition = Math.max(0, event.x <= width ? event.x : width);
+      if (points.value.length > 0) {
         isActive.value = true;
-        updatePosition(xPosition);
+        updatePosition(event.x);
 
         if (onActivated) {
           scheduleOnRN(onActivated);
@@ -148,12 +111,8 @@ export function LineChartCursor({
     },
     onTouchesMove: (event) => {
       'worklet';
-      if (parsedPath && isActive.value && event.allTouches.length > 0) {
-        const xPosition = Math.max(
-          0,
-          event.allTouches[0]!.x <= width ? event.allTouches[0]!.x : width
-        );
-        updatePosition(xPosition);
+      if (isActive.value && event.allTouches.length > 0) {
+        updatePosition(event.allTouches[0]!.x);
       }
     },
     onDeactivate: () => {

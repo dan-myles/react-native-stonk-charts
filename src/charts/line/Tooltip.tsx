@@ -15,7 +15,7 @@ import { LineChartDimensionsContext } from './Chart';
 import type { LayoutChangeEvent, ViewProps } from 'react-native';
 import { getXPositionForCurve } from './utils/getXPositionForCurve';
 import { getYForX } from 'react-native-redash';
-import { useLineChart } from './useLineChart';
+import { useLineChartCursor } from './useLineChart';
 import { useMemo } from 'react';
 import type { TFormatterFn } from '../../types';
 
@@ -60,7 +60,7 @@ export function LineChartTooltip({
     LineChartDimensionsContext
   );
   const { type } = React.useContext(CursorContext);
-  const { currentX, currentY, isActive } = useLineChart();
+  const { currentX, currentY, isActive } = useLineChartCursor();
 
   const elementWidth = useSharedValue(0);
   const elementHeight = useSharedValue(0);

@@ -20,11 +20,14 @@ import {
   EMPTY_VERTICES,
   Geometry,
   getCurve,
+  getPointXs,
   getVertices,
+  getXScale,
   lerpVertices,
   resample,
   sameVertices,
   Vertices,
+  XScale,
   yForX,
 } from './utils/geometry';
 
@@ -48,6 +51,28 @@ export const LineChartDimensionsContext = React.createContext({
    */
   geometry: null as SharedValue<Geometry> | null,
   curve: 'bumpX' as Curve | null,
+});
+
+type Shapes = { line: string; area: string };
+
+/**
+ * What the chart's own paths and cursor read. Its value changes only with
+ * the chart's size or curve, never with the data, so those components don't
+ * re-render on a live tick or a range switch; the data reaches them through
+ * the shared values.
+ */
+export const LineChartGeometryContext = React.createContext({
+  width: 0,
+  height: 0,
+  curve: 'bumpX' as Curve | null,
+  /** The drawn line and area, morphing. */
+  geometry: { value: { xs: [], ys: [], line: '', area: '' } } as unknown as SharedValue<Geometry>,
+  /** The line and area the morph is heading to, for paths with transitions off. */
+  target: { value: { line: '', area: '' } } as SharedValue<Shapes>,
+  currentY: { value: -1 } as SharedValue<number>,
+  /** Each data point's X, by index. */
+  points: { value: [] } as unknown as SharedValue<number[]>,
+  scale: { value: { start: 0, end: 0, width: 0 } } as SharedValue<XScale>,
 });
 
 type LineChartProps = ViewProps & {
@@ -151,9 +176,19 @@ export function LineChart({
   const to = useSharedValue<Vertices>(EMPTY_VERTICES);
   const progress = useSharedValue(1);
 
+  const points = useSharedValue<number[]>([]);
+  const scale = useSharedValue<XScale>({ start: 0, end: 0, width: 0 });
+
   React.useEffect(() => {
     pending.value = vertices;
   }, [pending, vertices]);
+
+  React.useEffect(() => {
+    const rows = data ?? [];
+    const next = getXScale(rows, pathWidth, xDomain);
+    scale.value = next;
+    points.value = getPointXs(rows, next, xDomain);
+  }, [data, pathWidth, xDomain, points, scale]);
 
   useAnimatedReaction(
     () => pending.value,
@@ -186,6 +221,17 @@ export function LineChart({
       area: buildArea(line, drawn.xs, drawn.ys, chartDrawingHeight),
     };
   });
+  const target = useDerivedValue<Shapes>(() => {
+    if (!curve) {
+      return { line: '', area: '' };
+    }
+    const line = buildLine(to.value.xs, to.value.ys, curve);
+    return {
+      line,
+      area: buildArea(line, to.value.xs, to.value.ys, chartDrawingHeight),
+    };
+  });
+
   const pointWidth = React.useMemo(
     () => width / (data ? data.length - 1 : 1),
     [data, width]
@@ -237,13 +283,29 @@ export function LineChart({
     ]
   );
 
+  const geometryValue = React.useMemo(
+    () => ({
+      width,
+      height,
+      curve,
+      geometry,
+      target,
+      currentY,
+      points,
+      scale,
+    }),
+    [width, height, curve, geometry, target, currentY, points, scale]
+  );
+
   return (
     <LineChartIdProvider id={id}>
-      <LineChartDimensionsContext.Provider value={contextValue}>
-        <View {...props} style={[absolute && styles.absolute, props.style]}>
-          {children}
-        </View>
-      </LineChartDimensionsContext.Provider>
+      <LineChartGeometryContext.Provider value={geometryValue}>
+        <LineChartDimensionsContext.Provider value={contextValue}>
+          <View {...props} style={[absolute && styles.absolute, props.style]}>
+            {children}
+          </View>
+        </LineChartDimensionsContext.Provider>
+      </LineChartGeometryContext.Provider>
     </LineChartIdProvider>
   );
 }

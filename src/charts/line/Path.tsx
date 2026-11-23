@@ -1,11 +1,8 @@
 import * as React from 'react';
-import Animated, { AnimatedProps } from 'react-native-reanimated';
-import { Path, PathProps } from 'react-native-svg';
-import { LineChartDimensionsContext } from './Chart';
+import { AnimatedProps } from 'react-native-reanimated';
+import { PathProps } from 'react-native-svg';
 import { LineChartPathContext } from './LineChartPathContext';
-import useAnimatedPath from './useAnimatedPath';
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
+import { AnimatedChartPath } from './useAnimatedPath';
 
 export type LineChartPathProps = AnimatedProps<PathProps> & {
   color?: string;
@@ -30,39 +27,27 @@ export type LineChartPathProps = AnimatedProps<PathProps> & {
   isTransitionEnabled?: boolean;
 };
 
-LineChartPath.displayName = 'LineChartPath';
-
-export function LineChartPath({
+/** Memoized: it reads the chart through shared values, so a parent's re-render on new data skips it. */
+export const LineChartPath = React.memo(function LineChartPath({
   color = 'black',
   inactiveColor,
   width: strokeWidth = 3,
   ...props
 }: LineChartPathProps) {
-  const { path } = React.useContext(LineChartDimensionsContext);
   const { isTransitionEnabled, isInactive } =
     React.useContext(LineChartPathContext);
 
-  ////////////////////////////////////////////////
-
-  const { animatedProps } = useAnimatedPath({
-    enabled: isTransitionEnabled,
-    path,
-    kind: 'line',
-  });
-
-  ////////////////////////////////////////////////
-
   return (
-    <>
-      <AnimatedPath
-        animatedProps={animatedProps}
-        fill="transparent"
-        stroke={isInactive ? inactiveColor || color : color}
-        strokeOpacity={isInactive && !inactiveColor ? 0.2 : 1}
-        strokeWidth={strokeWidth}
-        strokeLinejoin="round"
-        {...props}
-      />
-    </>
+    <AnimatedChartPath
+      kind="line"
+      enabled={isTransitionEnabled}
+      fill="transparent"
+      stroke={isInactive ? inactiveColor || color : color}
+      strokeOpacity={isInactive && !inactiveColor ? 0.2 : 1}
+      strokeWidth={strokeWidth}
+      strokeLinejoin="round"
+      {...props}
+    />
   );
-}
+});
+LineChartPath.displayName = 'LineChartPath';

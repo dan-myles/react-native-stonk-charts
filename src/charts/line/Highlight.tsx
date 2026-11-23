@@ -1,12 +1,10 @@
 import * as React from 'react';
-import Animated, { AnimatedProps } from 'react-native-reanimated';
-import { ClipPath, Defs, G, Path, PathProps, Rect } from 'react-native-svg';
+import { AnimatedProps } from 'react-native-reanimated';
+import { ClipPath, Defs, G, PathProps, Rect } from 'react-native-svg';
 import { LineChartDimensionsContext } from './Chart';
 import { LineChartPathContext } from './LineChartPathContext';
-import useAnimatedPath from './useAnimatedPath';
+import { AnimatedChartPath } from './useAnimatedPath';
 import { getXPositionForCurve } from './utils/getXPositionForCurve';
-
-const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 export type LineChartColorProps = AnimatedProps<PathProps> & {
   color?: string;
@@ -28,20 +26,12 @@ export function LineChartHighlight({
   width: strokeWidth = 3,
   ...props
 }: LineChartColorProps) {
-  const { path, parsedPath, height } = React.useContext(
+  const { parsedPath, height } = React.useContext(
     LineChartDimensionsContext
   );
   const { isTransitionEnabled, isInactive: _isInactive } =
     React.useContext(LineChartPathContext);
   const isInactive = showInactiveColor && _isInactive;
-
-  ////////////////////////////////////////////////
-
-  const { animatedProps } = useAnimatedPath({
-    enabled: isTransitionEnabled,
-    path,
-    kind: 'line',
-  });
 
   ////////////////////////////////////////////////
 
@@ -61,9 +51,10 @@ export function LineChartHighlight({
           />
         </ClipPath>
       </Defs>
-      <AnimatedPath
+      <AnimatedChartPath
+        kind="line"
+        enabled={isTransitionEnabled}
         clipPath="url(#clip)"
-        animatedProps={animatedProps}
         fill="transparent"
         stroke={isInactive ? inactiveColor || color : color}
         strokeWidth={strokeWidth}

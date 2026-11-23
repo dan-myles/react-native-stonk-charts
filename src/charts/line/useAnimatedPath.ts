@@ -1,34 +1,61 @@
 import * as React from 'react';
-import {
+import Animated, {
+  AnimatedProps,
   useAnimatedProps,
   useAnimatedReaction,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { Path, PathProps } from 'react-native-svg';
 
-import { LineChartDimensionsContext } from './Chart';
+import { LineChartDimensionsContext, LineChartGeometryContext } from './Chart';
 import { interpolatePath } from './utils';
 import { usePrevious } from '../../utils';
 
+const AnimatedPath = Animated.createAnimatedComponent(Path);
+
+type ChartPathProps = AnimatedProps<PathProps> & {
+  kind: 'line' | 'area';
+  enabled: boolean;
+};
+
 /**
- * The `d` for one path. When the chart draws its own curve, an animating path
- * reads the chart's shared geometry, so every path and decoration follows one
- * morph and the string is built once per frame. A path with transitions off
- * draws the target string. Other curves morph per path with
- * `interpolatePath`, which is slower.
+ * One of the chart's paths. With `curveBumpX` or `curveLinear` it reads the
+ * chart's shared geometry: the morphing shape, or the target when transitions
+ * are off. It never reads the data, so it doesn't re-render when the data
+ * changes, and the string is built once per frame for every path. Other
+ * curves morph per path with `interpolatePath`, which is slower.
  */
-export default function useAnimatedPath({
+export function AnimatedChartPath(props: ChartPathProps) {
+  const { curve } = React.useContext(LineChartGeometryContext);
+  return curve
+    ? React.createElement(SharedPath, props)
+    : React.createElement(MorphingPath, props);
+}
+
+function SharedPath({ kind, enabled, ...props }: ChartPathProps) {
+  const { geometry, target } = React.useContext(LineChartGeometryContext);
+  const source = enabled ? geometry : target;
+  const animatedProps = useAnimatedProps(() => ({ d: source.value[kind] }));
+  return React.createElement(AnimatedPath, { animatedProps, ...props });
+}
+
+function MorphingPath({ kind, enabled, ...props }: ChartPathProps) {
+  const { path, area } = React.useContext(LineChartDimensionsContext);
+  const { animatedProps } = useAnimatedPath({
+    enabled,
+    path: kind === 'area' ? area : path,
+  });
+  return React.createElement(AnimatedPath, { animatedProps, ...props });
+}
+
+function useAnimatedPath({
   enabled = true,
   path,
-  kind,
 }: {
   enabled?: boolean;
   path: string;
-  kind: 'line' | 'area';
 }) {
-  const { geometry } = React.useContext(LineChartDimensionsContext);
-  const shared = enabled ? geometry : null;
-
   const transition = useSharedValue(0);
 
   const previousPath = usePrevious(path);
@@ -38,7 +65,7 @@ export default function useAnimatedPath({
       return path;
     },
     (result, previous) => {
-      if (result !== previous && !shared) {
+      if (result !== previous) {
         transition.value = 0;
         transition.value = withTiming(1);
       }
@@ -50,16 +77,13 @@ export default function useAnimatedPath({
   // closure is a worklet, so the frame loop below only evaluates it.
   const pathInterpolator = React.useMemo(
     () =>
-      previousPath && enabled && !shared
+      previousPath && enabled
         ? interpolatePath(previousPath, path, null)
         : null,
-    [enabled, path, previousPath, shared]
+    [enabled, path, previousPath]
   );
 
   const animatedProps = useAnimatedProps(() => {
-    if (shared) {
-      return { d: shared.value[kind] };
-    }
     let d = path || '';
     if (pathInterpolator) {
       d = pathInterpolator(transition.value);
